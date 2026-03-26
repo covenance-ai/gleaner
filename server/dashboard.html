@@ -1404,7 +1404,19 @@ export GLEANER_TOKEN=<span id="ob-env-token">gl_your_token_here</span></div>
   else if (step === 3) {
     el.innerHTML = `
       <h1>Install the session hook</h1>
-      <p class="sub">Tell Claude Code to upload transcripts when a session ends.</p>
+      <p class="sub">Two steps: install the CLI tool, then tell Claude Code to use it.</p>
+      <div class="ob-step-title">1. Install the Gleaner CLI</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        Requires <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank">uv</a>.
+        No clone or Python env setup needed — this installs a standalone tool.
+      </p>
+      <div class="code-block" id="cb-install">
+        <button class="cb-copy" onclick="obCopy('cb-install')">Copy</button>
+uv tool install git+https://github.com/covenance-ai/gleaner</div>
+      <div class="ob-step-title" style="margin-top:20px">2. Add the session hook</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        This tells Claude Code to run <code>gleaner-upload</code> whenever a session ends.
+      </p>
       <div class="code-block" id="cb-hook">
         <button class="cb-copy" onclick="obCopy('cb-hook')">Copy</button>
         <span class="cb-label">~/.claude/settings.json (merge into your existing file)</span>
@@ -1415,7 +1427,7 @@ export GLEANER_TOKEN=<span id="ob-env-token">gl_your_token_here</span></div>
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /path/to/gleaner/scripts/upload-session.py",
+            "command": "gleaner-upload",
             "timeout": 30
           }
         ]
@@ -1423,10 +1435,6 @@ export GLEANER_TOKEN=<span id="ob-env-token">gl_your_token_here</span></div>
     ]
   }
 }</div>
-      <p style="font-size:12px;color:var(--text2);margin-top:8px">
-        Update <code>/path/to/gleaner</code> to where you cloned the repo.
-        Or install as a Claude Code plugin: <code style="color:var(--accent)">claude mcp add</code> with the gleaner directory.
-      </p>
       <div class="ob-actions">
         <button class="btn-p" onclick="obStep(4)">Continue</button>
       </div>`;
@@ -1435,14 +1443,17 @@ export GLEANER_TOKEN=<span id="ob-env-token">gl_your_token_here</span></div>
   else if (step === 4) {
     el.innerHTML = `
       <h1>Upload existing sessions</h1>
-      <p class="sub">You can backfill all your past Claude Code conversations.</p>
-      <div class="ob-step-title">Run the backfill script</div>
+      <p class="sub">Backfill your past Claude Code conversations to Gleaner.</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        Make sure <code>GLEANER_URL</code> and <code>GLEANER_TOKEN</code> are set
+        (open a new terminal or <code>source ~/.zshrc</code>), then run:
+      </p>
       <div class="code-block" id="cb-backfill">
         <button class="cb-copy" onclick="obCopy('cb-backfill')">Copy</button>
-python3 /path/to/gleaner/scripts/backfill.py</div>
+gleaner-backfill</div>
       <p style="font-size:12px;color:var(--text2);margin-top:8px">
-        This scans <code>~/.claude/projects/</code> for JSONL files and uploads any that aren't already on the server.
-        Use <code>--dry-run</code> to preview first. Requires GLEANER_URL and GLEANER_TOKEN to be set.
+        Scans <code>~/.claude/projects/</code> and uploads sessions not already on the server.
+        Use <code>--dry-run</code> to preview first.
       </p>
       <div class="ob-actions">
         <button class="btn-p" onclick="obFinish()">Go to Dashboard</button>
@@ -1678,7 +1689,11 @@ function renderSetupInstructions() {
   const el = document.getElementById('setup-instructions');
   const serverUrl = window.location.origin + BASE;
   el.innerHTML = `
-    <div class="code-block" id="cb-setup-env">
+    <div class="code-block" id="cb-setup-install">
+      <button class="cb-copy" onclick="obCopy('cb-setup-install')">Copy</button>
+      <span class="cb-label">Install the CLI (<a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank">uv</a> required)</span>
+uv tool install git+https://github.com/covenance-ai/gleaner</div>
+    <div class="code-block" id="cb-setup-env" style="margin-top:12px">
       <button class="cb-copy" onclick="obCopy('cb-setup-env')">Copy</button>
       <span class="cb-label">Add to ~/.zshrc or ~/.bashrc</span>
 export GLEANER_URL=${esc(serverUrl)}
@@ -1693,7 +1708,7 @@ export GLEANER_TOKEN=gl_your_token_here</div>
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /path/to/gleaner/scripts/upload-session.py",
+            "command": "gleaner-upload",
             "timeout": 30
           }
         ]
@@ -1702,7 +1717,6 @@ export GLEANER_TOKEN=gl_your_token_here</div>
   }
 }</div>
     <p style="font-size:12px;color:var(--text2);margin-top:8px">
-      Replace <code>/path/to/gleaner</code> with the actual path where you cloned the repository.
       Replace <code>gl_your_token_here</code> with one of your tokens above.
     </p>`;
 }

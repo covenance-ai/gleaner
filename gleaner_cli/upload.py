@@ -102,8 +102,9 @@ def collect_provenance() -> dict:
 
 def upload(session_id: str, metadata: dict, transcript_path: Path):
     """Upload session metadata + gzipped transcript to the Gleaner API."""
-    url_base = os.environ.get("GLEANER_URL", "")
-    token = os.environ.get("GLEANER_TOKEN", "")
+    from gleaner_cli.config import get_credentials
+
+    url_base, token = get_credentials()
 
     raw = transcript_path.read_bytes()
     try:
@@ -150,7 +151,10 @@ def find_session_file(session_id: str) -> Path | None:
 
 def main():
     """Entry point for gleaner-upload CLI and SessionEnd hook."""
-    if not os.environ.get("GLEANER_URL") or not os.environ.get("GLEANER_TOKEN"):
+    from gleaner_cli.config import get_credentials
+
+    url, token = get_credentials()
+    if not url or not token:
         return
 
     try:

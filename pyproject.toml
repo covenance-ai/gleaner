@@ -6,6 +6,7 @@ requires-python = ">=3.10"
 license = "MIT"
 
 [project.scripts]
+gleaner = "gleaner_cli.cli:main"
 gleaner-upload = "gleaner_cli.upload:main"
 gleaner-backfill = "gleaner_cli.backfill:main"
 

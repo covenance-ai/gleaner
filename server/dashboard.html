@@ -1373,10 +1373,17 @@ function obStep(step) {
   else if (step === 2) {
     el.innerHTML = `
       <h1>Create an API token</h1>
-      <p class="sub">Tokens let your Claude Code plugin upload sessions to Gleaner.</p>
+      <p class="sub">
+        When a Claude Code session ends, a hook script uploads the transcript to Gleaner.
+        The token authenticates those uploads — it's how the server knows the session belongs to you.
+      </p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:20px">
+        You'll add this token to your shell profile as an environment variable in the next step.
+        Create one token per machine (e.g. "laptop", "work-desktop") so you can revoke them independently.
+      </p>
       <div class="ob-step-title">Token name</div>
       <div class="ob-field">
-        <input type="text" id="ob-token-name" value="default" placeholder="e.g. laptop, work">
+        <input type="text" id="ob-token-name" value="default" placeholder="e.g. laptop, work-desktop">
       </div>
       <div id="ob-token-display"></div>
       <div class="ob-actions">
@@ -1392,12 +1399,19 @@ function obStep(step) {
       <h1>Install the plugin</h1>
       <p class="sub">Two things to configure: environment variables and the session hook.</p>
       <div class="ob-step-title">1. Add to your shell profile</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        The upload script reads these variables to know where to send sessions and how to authenticate.
+        Add them to your shell profile so they're set in every terminal.
+      </p>
       <div class="code-block" id="cb-env">
         <button class="cb-copy" onclick="obCopy('cb-env')">Copy</button>
         <span class="cb-label">~/.zshrc or ~/.bashrc</span>
 export GLEANER_URL=${esc(serverUrl)}
 export GLEANER_TOKEN=${esc(tokenStr)}</div>
       <div class="ob-step-title" style="margin-top:20px">2. Add the session hook</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        This tells Claude Code to run the upload script whenever a session ends.
+      </p>
       <div class="code-block" id="cb-hook">
         <button class="cb-copy" onclick="obCopy('cb-hook')">Copy</button>
         <span class="cb-label">~/.claude/settings.json (merge into your existing file)</span>

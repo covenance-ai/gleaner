@@ -1371,21 +1371,30 @@ function obStep(step) {
   }
 
   else if (step === 2) {
+    const serverUrl = window.location.origin + BASE;
     el.innerHTML = `
       <h1>Create an API token</h1>
       <p class="sub">
         When a Claude Code session ends, a hook script uploads the transcript to Gleaner.
         The token authenticates those uploads — it's how the server knows the session belongs to you.
-      </p>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:20px">
-        You'll add this token to your shell profile as an environment variable in the next step.
-        Create one token per machine (e.g. "laptop", "work-desktop") so you can revoke them independently.
+        Create one token per machine so you can revoke them independently.
       </p>
       <div class="ob-step-title">Token name</div>
       <div class="ob-field">
         <input type="text" id="ob-token-name" value="default" placeholder="e.g. laptop, work-desktop">
       </div>
       <div id="ob-token-display"></div>
+      <div id="ob-env-block" style="display:none">
+        <div class="ob-step-title" style="margin-top:20px">Add to your shell profile</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+          The upload script reads these from your environment. Add to your shell profile so they're available in every terminal.
+        </p>
+        <div class="code-block" id="cb-env">
+          <button class="cb-copy" onclick="obCopy('cb-env')">Copy</button>
+          <span class="cb-label">~/.zshrc or ~/.bashrc</span>
+export GLEANER_URL=${esc(serverUrl)}
+export GLEANER_TOKEN=<span id="ob-env-token">gl_your_token_here</span></div>
+      </div>
       <div class="ob-actions">
         <button class="btn-p" id="ob-gen-btn" onclick="obGenerateToken()">Generate Token</button>
         <button class="btn-p" id="ob-next-2" onclick="obStep(3)" style="display:none">Continue</button>
@@ -1393,25 +1402,9 @@ function obStep(step) {
   }
 
   else if (step === 3) {
-    const serverUrl = window.location.origin + BASE;
-    const tokenStr = obToken || 'gl_your_token_here';
     el.innerHTML = `
-      <h1>Install the plugin</h1>
-      <p class="sub">Two things to configure: environment variables and the session hook.</p>
-      <div class="ob-step-title">1. Add to your shell profile</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
-        The upload script reads these variables to know where to send sessions and how to authenticate.
-        Add them to your shell profile so they're set in every terminal.
-      </p>
-      <div class="code-block" id="cb-env">
-        <button class="cb-copy" onclick="obCopy('cb-env')">Copy</button>
-        <span class="cb-label">~/.zshrc or ~/.bashrc</span>
-export GLEANER_URL=${esc(serverUrl)}
-export GLEANER_TOKEN=${esc(tokenStr)}</div>
-      <div class="ob-step-title" style="margin-top:20px">2. Add the session hook</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
-        This tells Claude Code to run the upload script whenever a session ends.
-      </p>
+      <h1>Install the session hook</h1>
+      <p class="sub">Tell Claude Code to upload transcripts when a session ends.</p>
       <div class="code-block" id="cb-hook">
         <button class="cb-copy" onclick="obCopy('cb-hook')">Copy</button>
         <span class="cb-label">~/.claude/settings.json (merge into your existing file)</span>
@@ -1542,6 +1535,10 @@ function obGenerateToken() {
         <button class="copy-btn" onclick="obCopyToken()">Copy</button>
       </div>
       <div class="ob-warn">Save this token now — it will not be shown again.</div>`;
+    // Show env block with actual token
+    document.getElementById('ob-env-block').style.display = '';
+    const envTok = document.getElementById('ob-env-token');
+    if (envTok) envTok.textContent = obToken;
     document.getElementById('ob-next-2').style.display = '';
   }).catch(() => {
     btn.disabled = false;

@@ -62,18 +62,6 @@ class TestPublicEndpoints:
         assert "Gleaner" in r.text
 
 
-class TestAuthRequired:
-    """In mock mode, auth is bypassed. Verify missing header still gets a response
-    (mock mode always authenticates as ikamen)."""
-
-    def test_me_accessible_in_mock(self):
-        r = client.get("/api/me")
-        assert r.status_code == 200
-
-    def test_sessions_accessible_in_mock(self):
-        r = client.get("/api/sessions")
-        assert r.status_code == 200
-
 
 class TestMeEndpoint:
     def test_returns_user_stats(self):

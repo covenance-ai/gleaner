@@ -36,7 +36,13 @@ if os.environ.get("GLEANER_MOCK"):
 else:
     import db
 
-DASHBOARD_HTML = (Path(__file__).parent / "dashboard.html").read_text()
+_server_dir = Path(__file__).parent
+DASHBOARD_HTML = (
+    (_server_dir / "dashboard.html")
+    .read_text()
+    .replace("/* {STYLES} */", (_server_dir / "dashboard.css").read_text())
+    .replace("/* {SCRIPT} */", (_server_dir / "dashboard.js").read_text())
+)
 
 ADMIN_TOKEN = os.environ.get("GLEANER_ADMIN_TOKEN", "")
 BASE_PATH = os.environ.get("BASE_PATH", "/gleaner")

@@ -16,7 +16,12 @@ jobs:
           node-version: 22
       - name: Run tests
         run: |
-          uv run --with pytest --with piicleaner --with detect-secrets pytest tests/ -v
+          uv run \
+            --with pytest --with httpx \
+            --with fastapi --with uvicorn \
+            --with google-auth --with google-cloud-firestore --with google-cloud-storage \
+            --with piicleaner --with detect-secrets \
+            pytest tests/ -v
         env:
           GLEANER_MOCK: "1"
 

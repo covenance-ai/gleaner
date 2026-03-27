@@ -311,15 +311,37 @@
   [data-theme="light"] .activity-day.l3 { background: rgba(9,105,218,0.6); }
   [data-theme="light"] .activity-day.l4 { background: var(--accent); }
 
-  /* User cards (team) */
-  .user-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .user-card {
+  /* Team expandable user cards */
+  #user-cards { display: flex; flex-direction: column; gap: 8px; }
+  .team-user-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-    padding: 16px; cursor: pointer; transition: border-color 0.15s;
+    transition: border-color 0.15s;
   }
-  .user-card:hover { border-color: var(--accent); }
-  .user-card .uc-name { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
-  .user-card .uc-meta { font-size: 12px; color: var(--text2); display: flex; flex-direction: column; gap: 4px; }
+  .team-user-card:hover, .team-user-card.expanded { border-color: var(--accent); }
+  .tuc-header { display: flex; align-items: center; padding: 16px 20px; cursor: pointer; }
+  .tuc-info { flex: 1; min-width: 0; }
+  .tuc-name { font-weight: 600; font-size: 15px; }
+  .tuc-summary { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .tuc-chevron { font-size: 10px; color: var(--text2); transition: transform 0.2s; flex-shrink: 0; margin-left: 12px; }
+  .team-user-card.expanded .tuc-chevron { transform: rotate(90deg); }
+  .tuc-body { display: none; }
+  .team-user-card.expanded .tuc-body { display: block; border-top: 1px solid var(--border); padding: 20px; }
+  .tuc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .tuc-stat-value { font-size: 1.3em; font-weight: 700; }
+  .tuc-stat-value.accent { color: var(--accent); }
+  .tuc-stat-value.purple { color: var(--purple); }
+  .tuc-stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .tuc-section { margin-bottom: 20px; }
+  .tuc-section:last-child { margin-bottom: 0; }
+  .tuc-section h4 { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+  .tuc-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .tuc-columns .tuc-section { margin-bottom: 0; }
+  @media (max-width: 700px) { .tuc-columns { grid-template-columns: 1fr; } }
+  .tuc-host {
+    display: inline-block; font-family: var(--mono); font-size: 12px;
+    padding: 3px 10px; background: rgba(188,140,255,0.1); color: var(--purple);
+    border-radius: 12px; margin: 0 6px 6px 0;
+  }
 
   /* Insights grid */
   .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }

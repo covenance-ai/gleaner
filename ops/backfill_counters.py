@@ -4,7 +4,7 @@ Run once after deploying the counter-based stats, or any time counters
 get out of sync. Safe to re-run — it overwrites counters from scratch.
 
 Usage:
-    python scripts/backfill_counters.py [--dry-run]
+    python ops/backfill_counters.py [--dry-run]
 """
 
 import argparse
@@ -13,7 +13,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "server"))
 import db
 
 

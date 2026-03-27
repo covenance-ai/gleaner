@@ -6,9 +6,9 @@ and updates the Firestore session document with a 'topic' field.
 Skips sessions that already have a topic.
 
 Usage:
-    python3 backfill_topics.py              # backfill all
-    python3 backfill_topics.py --dry-run    # show what would be updated
-    python3 backfill_topics.py --workers 8  # parallel workers
+    python3 ops/backfill_topics.py              # backfill all
+    python3 ops/backfill_topics.py --dry-run    # show what would be updated
+    python3 ops/backfill_topics.py --workers 8  # parallel workers
 """
 
 from __future__ import annotations

@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# Ensure scripts/ is importable
-sys.path.insert(0, str(Path(__file__).parent))
-
-from scrub import ScrubStats, scrub_text
+from gleaner_cli.scrub import ScrubStats, scrub_text
 
 
 def test_scrub_redacts_api_keys():

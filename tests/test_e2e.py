@@ -3,20 +3,19 @@
 
 Verifies the full upload-and-retrieve cycle:
   1. Creates a realistic JSONL transcript with user/assistant/tool messages
-  2. Uploads it via upload_session_lib (simulating the SessionEnd hook)
+  2. Uploads it via gleaner_cli (simulating the SessionEnd hook)
   3. Retrieves metadata via GET /api/session/{id} and checks counts
   4. Retrieves the raw gzipped transcript via GET /api/session/{id}/raw,
      decompresses it, and verifies it matches the original content
-  5. Optionally (--live) invokes the real `claude` CLI with the gleaner plugin
-     and checks that a new session appears on the server
+  5. Optionally (--live) invokes the real `claude` CLI and checks that
+     a new session appears on the server
 
-Requires:
-    GLEANER_URL   - Base URL of the Gleaner API (e.g. https://host/gleaner)
-    GLEANER_TOKEN - Bearer token for authentication
+Requires GLEANER_URL + GLEANER_TOKEN (env vars or ~/.config/gleaner.json).
 
 Usage:
-    python3 scripts/test_e2e.py            # upload + verify test
-    python3 scripts/test_e2e.py --live      # also run claude CLI smoke test
+    pytest tests/test_e2e.py                  # via pytest
+    python3 tests/test_e2e.py                 # upload + verify test
+    python3 tests/test_e2e.py --live          # also run claude CLI smoke test
 """
 
 from __future__ import annotations
@@ -35,15 +34,11 @@ from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
-# Setup: make scripts/ importable so we can reuse upload_session_lib
-# ---------------------------------------------------------------------------
-SCRIPTS_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPTS_DIR))
-from upload_session_lib import parse_transcript, upload
+from gleaner_cli.config import get_credentials
+from gleaner_cli.upload import parse_transcript, upload
 
-GLEANER_URL = os.environ.get("GLEANER_URL", "")
-GLEANER_TOKEN = os.environ.get("GLEANER_TOKEN", "")
-PLUGIN_DIR = SCRIPTS_DIR.parent  # /Users/ikamen/ai-workspace/ilya/gleaner
+GLEANER_URL, GLEANER_TOKEN = get_credentials()
+REPO_DIR = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -350,11 +345,9 @@ def test_live_claude():
         return
     check("pre-fetch session list", True, f"{len(before)} existing sessions")
 
-    # Run claude with the plugin
+    # Run claude (assumes gleaner hook is installed via `gleaner setup`)
     cmd = [
         claude_bin,
-        "--plugin-dir",
-        str(PLUGIN_DIR),
         "-p",
         "Say exactly: gleaner e2e test ping",
         "--no-input",

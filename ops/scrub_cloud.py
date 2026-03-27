@@ -6,24 +6,21 @@ scrubs PII and secrets, re-uploads, and updates Firestore metadata.
 Produces a JSON report with per-session and aggregate stats.
 
 Usage:
-    python3 scrub_cloud.py              # scrub all transcripts
-    python3 scrub_cloud.py --dry-run    # show what would be scrubbed
-    python3 scrub_cloud.py --workers 8  # parallel workers (default: 6)
+    python3 ops/scrub_cloud.py              # scrub all transcripts
+    python3 ops/scrub_cloud.py --dry-run    # show what would be scrubbed
+    python3 ops/scrub_cloud.py --workers 8  # parallel workers (default: 6)
 """
 
 from __future__ import annotations
 
 import gzip
 import json
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-
-from scrub import scrub_text
+from gleaner_cli.scrub import scrub_text
 
 GCP_PROJECT = "covenance-469421"
 GCS_BUCKET = "gleaner-sessions"

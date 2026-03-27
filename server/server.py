@@ -37,11 +37,13 @@ else:
     import db
 
 _server_dir = Path(__file__).parent
+_JS_FILES = ["util", "api", "auth", "onboarding", "home", "team", "sessions", "settings", "app"]
+_js = "\n".join((_server_dir / "js" / f"{name}.js").read_text() for name in _JS_FILES)
 DASHBOARD_HTML = (
     (_server_dir / "dashboard.html")
     .read_text()
     .replace("/* {STYLES} */", (_server_dir / "dashboard.css").read_text())
-    .replace("/* {SCRIPT} */", (_server_dir / "dashboard.js").read_text())
+    .replace("/* {SCRIPT} */", _js)
 )
 
 ADMIN_TOKEN = os.environ.get("GLEANER_ADMIN_TOKEN", "")

@@ -5,7 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY db.py db_mock.py server.py dashboard.html dashboard.css dashboard.js ./
+COPY db.py db_mock.py server.py dashboard.html dashboard.css ./
+COPY js/ js/
 
 ENV PORT=8080
 EXPOSE 8080

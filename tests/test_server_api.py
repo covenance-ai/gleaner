@@ -63,6 +63,42 @@ class TestPublicEndpoints:
 
 
 
+class TestAuth:
+    """Auth validation with MOCK_MODE disabled — uses real token lookup against mock DB."""
+
+    VALID_TOKEN = "gl_mock_local_dev_token_1234567890abcdef"  # seeded in db_mock
+
+    @pytest.fixture(autouse=True)
+    def disable_mock_mode(self, monkeypatch):
+        import server
+        monkeypatch.setattr(server, "MOCK_MODE", False)
+
+    def test_no_header_returns_401(self):
+        r = client.get("/api/me")
+        assert r.status_code == 401
+
+    def test_invalid_token_returns_403(self):
+        r = client.get("/api/me", headers={"Authorization": "Bearer gl_bad_token"})
+        assert r.status_code == 403
+
+    def test_valid_token_returns_200(self):
+        r = client.get("/api/me", headers={"Authorization": f"Bearer {self.VALID_TOKEN}"})
+        assert r.status_code == 200
+        assert r.json()["user"] == "ikamen"
+
+    def test_malformed_header_returns_401(self):
+        r = client.get("/api/sessions", headers={"Authorization": "Token abc"})
+        assert r.status_code == 401
+
+    def test_revoked_token_returns_403(self):
+        """Create a token, revoke it, then try to use it."""
+        import db_mock as db
+        raw = db.create_user_token("testuser", "test@x.com", "to-revoke")
+        db.revoke_user_token(raw[:8], "test@x.com")
+        r = client.get("/api/me", headers={"Authorization": f"Bearer {raw}"})
+        assert r.status_code == 403
+
+
 class TestMeEndpoint:
     def test_returns_user_stats(self):
         r = client.get("/api/me", headers=AUTH)

@@ -100,7 +100,7 @@ All data endpoints require a `Bearer` token (user token or Google JWT).
 
 ```
 gleaner/
-  gleaner_cli/              # Installable client package (zero deps)
+  gleaner/              # Installable client package
     cli.py                  # gleaner command: setup, status, on/off, auth
     upload.py               # gleaner-upload: SessionEnd hook handler
     backfill.py             # gleaner backfill: upload existing sessions

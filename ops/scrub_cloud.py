@@ -20,7 +20,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from gleaner_cli.scrub import scrub_text
+from gleaner.scrub import scrub_text
 
 GCP_PROJECT = "covenance-469421"
 GCS_BUCKET = "gleaner-sessions"

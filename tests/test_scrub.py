@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gleaner_cli.scrub import ScrubStats, scrub_text
+from gleaner.scrub import ScrubStats, scrub_text
 
 
 def test_scrub_redacts_api_keys():

@@ -3,7 +3,7 @@
 
 Verifies the full upload-and-retrieve cycle:
   1. Creates a realistic JSONL transcript with user/assistant/tool messages
-  2. Uploads it via gleaner_cli (simulating the SessionEnd hook)
+  2. Uploads it via gleaner (simulating the SessionEnd hook)
   3. Retrieves metadata via GET /api/session/{id} and checks counts
   4. Retrieves the raw gzipped transcript via GET /api/session/{id}/raw,
      decompresses it, and verifies it matches the original content
@@ -34,8 +34,8 @@ from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
-from gleaner_cli.config import get_credentials
-from gleaner_cli.upload import parse_transcript, upload
+from gleaner.config import get_credentials
+from gleaner.upload import parse_transcript, upload
 
 GLEANER_URL, GLEANER_TOKEN = get_credentials()
 REPO_DIR = Path(__file__).resolve().parent.parent

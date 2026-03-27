@@ -14,7 +14,7 @@ import json
 import sys
 import urllib.request
 
-from gleaner_cli.config import (
+from gleaner.config import (
     CLAUDE_SETTINGS,
     CONFIG_FILE,
     get_credentials,
@@ -128,6 +128,11 @@ def main():
     p.add_argument("--project", type=str, help="Filter by project name")
     p.add_argument("--force", action="store_true", help="Re-upload existing")
 
+    p = sub.add_parser("pull", help="Download sessions for local analysis")
+    p.add_argument("-o", "--output", help="Output directory (default: ~/.gleaner)")
+    p.add_argument("--transcripts", action="store_true", help="Also download raw transcripts")
+    p.add_argument("-j", "--workers", type=int, default=4, help="Parallel downloads")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -142,9 +147,13 @@ def main():
     }
 
     if args.command == "backfill":
-        from gleaner_cli.backfill import run
+        from gleaner.backfill import run
 
         run(dry_run=args.dry_run, project=args.project, force=args.force)
+    elif args.command == "pull":
+        from gleaner.pull import run as pull_run
+
+        pull_run(output=args.output, transcripts=args.transcripts, workers=args.workers)
     else:
         commands[args.command](args)
 

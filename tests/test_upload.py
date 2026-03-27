@@ -1,9 +1,9 @@
-"""Tests for gleaner_cli.upload: transcript parsing, provenance, session discovery."""
+"""Tests for gleaner.upload: transcript parsing, provenance, session discovery."""
 
 import json
 from pathlib import Path
 
-from gleaner_cli.upload import collect_provenance, find_session_file, parse_transcript
+from gleaner.upload import collect_provenance, find_session_file, parse_transcript
 
 
 class TestParseTranscript:
@@ -96,7 +96,7 @@ class TestFindSessionFile:
         session_file = projects / "abc123.jsonl"
         session_file.write_text("{}\n")
 
-        monkeypatch.setattr("gleaner_cli.upload.CLAUDE_DIR", tmp_path)
+        monkeypatch.setattr("gleaner.upload.CLAUDE_DIR", tmp_path)
         assert find_session_file("abc123") == session_file
 
     def test_returns_none_for_missing(self, tmp_path, monkeypatch):
@@ -104,10 +104,10 @@ class TestFindSessionFile:
         projects = tmp_path / "projects" / "proj"
         projects.mkdir(parents=True)
 
-        monkeypatch.setattr("gleaner_cli.upload.CLAUDE_DIR", tmp_path)
+        monkeypatch.setattr("gleaner.upload.CLAUDE_DIR", tmp_path)
         assert find_session_file("nonexistent") is None
 
     def test_returns_none_when_no_projects_dir(self, tmp_path, monkeypatch):
         """Returns None when ~/.claude/projects/ doesn't exist."""
-        monkeypatch.setattr("gleaner_cli.upload.CLAUDE_DIR", tmp_path)
+        monkeypatch.setattr("gleaner.upload.CLAUDE_DIR", tmp_path)
         assert find_session_file("anything") is None

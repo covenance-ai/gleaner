@@ -232,17 +232,30 @@ def list_sessions(
     project: str | None = None,
     limit: int = 100,
     ids_only: bool = False,
+    since: str | None = None,
+    export: bool = False,
     authorization: str = Header(""),
 ):
     _require_token(authorization)
 
+    uploaded_after = None
+    if since:
+        from datetime import datetime as _dt
+        # URL decoding turns '+' into ' ' in timezone offsets; normalize both forms
+        normalized = since.replace("Z", "+00:00").replace(" 00:00", "+00:00")
+        uploaded_after = _dt.fromisoformat(normalized)
+
     if ids_only:
         session_ids = db.list_sessions(
-            user=user, project=project, limit=limit, ids_only=True
+            user=user, project=project, limit=limit, ids_only=True,
+            uploaded_after=uploaded_after,
         )
         return {"session_ids": session_ids}
 
-    sessions = db.list_sessions(user=user, project=project, limit=limit)
+    sessions = db.list_sessions(
+        user=user, project=project, limit=limit,
+        uploaded_after=uploaded_after, keep_tool_counts=export,
+    )
     return {"sessions": sessions}
 
 

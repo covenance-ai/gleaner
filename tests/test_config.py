@@ -1,10 +1,10 @@
-"""Tests for gleaner_cli.config: config file I/O, hook management."""
+"""Tests for gleaner.config: config file I/O, hook management."""
 
 import json
 
 import pytest
 
-import gleaner_cli.config as config
+import gleaner.config as config
 
 
 @pytest.fixture(autouse=True)

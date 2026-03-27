@@ -414,6 +414,8 @@ def list_sessions(
     project: str | None = None,
     limit: int = 100,
     ids_only: bool = False,
+    uploaded_after: datetime | None = None,
+    keep_tool_counts: bool = False,
 ) -> list:
     """List sessions, optionally filtered."""
     query = _db().collection("sessions")
@@ -422,9 +424,12 @@ def list_sessions(
         query = query.where("provenance.user", "==", user)
     if project:
         query = query.where("project", "==", project)
+    if uploaded_after:
+        query = query.where("uploaded_at", ">", uploaded_after)
 
     query = query.order_by("uploaded_at", direction=firestore.Query.DESCENDING)
-    query = query.limit(limit)
+    if limit:
+        query = query.limit(limit)
 
     if ids_only:
         return [doc.id for doc in query.stream()]
@@ -433,9 +438,8 @@ def list_sessions(
     for doc in query.stream():
         data = doc.to_dict() or {}
         data["session_id"] = doc.id
-        # Don't include large fields in list view
-        data.pop("tool_counts", None)
-        # Keep topic for session list display
+        if not keep_tool_counts:
+            data.pop("tool_counts", None)
         results.append(data)
     return results
 

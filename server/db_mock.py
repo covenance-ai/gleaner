@@ -522,6 +522,8 @@ def list_sessions(
     project: str | None = None,
     limit: int = 100,
     ids_only: bool = False,
+    uploaded_after: datetime | None = None,
+    keep_tool_counts: bool = False,
 ) -> list:
     results = sorted(
         _sessions.values(),
@@ -532,10 +534,19 @@ def list_sessions(
         results = [s for s in results if s.get("provenance", {}).get("user") == user]
     if project:
         results = [s for s in results if s.get("project") == project]
-    results = results[:limit]
+    if uploaded_after:
+        results = [s for s in results if s.get("uploaded_at", "") > uploaded_after]
+    if limit:
+        results = results[:limit]
     if ids_only:
         return [s.get("session_id", "") for s in results]
-    return [{**s, "session_id": s.get("session_id", "")} for s in results]
+    out = []
+    for s in results:
+        row = {**s, "session_id": s.get("session_id", "")}
+        if not keep_tool_counts:
+            row.pop("tool_counts", None)
+        out.append(row)
+    return out
 
 
 def get_user_stats(username: str) -> dict:

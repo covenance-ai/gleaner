@@ -20,8 +20,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from gleaner_cli.config import get_credentials
-from gleaner_cli.upload import parse_transcript, upload
+from gleaner.config import get_credentials
+from gleaner.upload import parse_transcript, upload
 
 CLAUDE_DIR = Path.home() / ".claude"
 

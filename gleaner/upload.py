@@ -31,7 +31,7 @@ def parse_transcript(path: Path) -> dict:
     first_ts = None
     last_ts = None
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -102,21 +102,18 @@ def collect_provenance() -> dict:
 
 def upload(session_id: str, metadata: dict, transcript_path: Path):
     """Upload session metadata + gzipped transcript to the Gleaner API."""
-    from gleaner_cli.config import get_credentials
+    from gleaner.config import get_credentials
 
     url_base, token = get_credentials()
 
     raw = transcript_path.read_bytes()
-    try:
-        from gleaner_cli.scrub import scrub_text
+    from gleaner.scrub import scrub_text
 
-        text = raw.decode("utf-8")
-        scrubbed, stats = scrub_text(text)
-        raw = scrubbed.encode("utf-8")
-        if stats.redactions:
-            metadata["redactions"] = stats.redactions
-    except ImportError:
-        pass  # scrubbing deps not installed — upload as-is
+    text = raw.decode("utf-8")
+    scrubbed, stats = scrub_text(text)
+    raw = scrubbed.encode("utf-8")
+    if stats.redactions:
+        metadata["redactions"] = stats.redactions
     compressed = gzip.compress(raw)
 
     payload = {
@@ -151,7 +148,7 @@ def find_session_file(session_id: str) -> Path | None:
 
 def main():
     """Entry point for gleaner-upload CLI and SessionEnd hook."""
-    from gleaner_cli.config import get_credentials
+    from gleaner.config import get_credentials
 
     url, token = get_credentials()
     if not url or not token:

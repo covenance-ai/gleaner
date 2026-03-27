@@ -22,7 +22,7 @@ def read_config() -> dict:
     if not CONFIG_FILE.exists():
         return {}
     try:
-        return json.loads(CONFIG_FILE.read_text())
+        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -46,7 +46,7 @@ def read_claude_settings() -> dict:
     if not CLAUDE_SETTINGS.exists():
         return {}
     try:
-        return json.loads(CLAUDE_SETTINGS.read_text())
+        return json.loads(CLAUDE_SETTINGS.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
 

@@ -260,6 +260,38 @@ class TestSessionFilters:
             for s in r2.json()["sessions"]:
                 assert s["project"] == proj
 
+    def test_since_returns_subset(self):
+        """since parameter filters to sessions uploaded after the given timestamp."""
+        all_r = client.get("/api/sessions?limit=0", headers=AUTH)
+        all_sessions = all_r.json()["sessions"]
+        assert len(all_sessions) > 1, "need multiple sessions for this test"
+        # Pick a timestamp that splits the set (use the middle session's uploaded_at)
+        mid = all_sessions[len(all_sessions) // 2]
+        mid_ts = mid.get("uploaded_at", "")
+        if hasattr(mid_ts, "isoformat"):
+            mid_ts = mid_ts.isoformat()
+        filtered_r = client.get(f"/api/sessions?since={mid_ts}&limit=0", headers=AUTH)
+        filtered = filtered_r.json()["sessions"]
+        assert len(filtered) < len(all_sessions)
+
+    def test_limit_zero_returns_all(self):
+        """limit=0 disables the limit, returning all sessions."""
+        r100 = client.get("/api/sessions?limit=100", headers=AUTH)
+        r0 = client.get("/api/sessions?limit=0", headers=AUTH)
+        assert len(r0.json()["sessions"]) >= len(r100.json()["sessions"])
+
+    def test_export_keeps_tool_counts(self):
+        """export=true preserves tool_counts in the response."""
+        r = client.get("/api/sessions?limit=5&export=true", headers=AUTH)
+        sessions = r.json()["sessions"]
+        assert any("tool_counts" in s for s in sessions)
+
+    def test_normal_list_drops_tool_counts(self):
+        """Without export=true, tool_counts is omitted."""
+        r = client.get("/api/sessions?limit=5", headers=AUTH)
+        for s in r.json()["sessions"]:
+            assert "tool_counts" not in s
+
 
 class TestUserProfile:
     def test_get_user_stats(self):

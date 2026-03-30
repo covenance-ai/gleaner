@@ -210,7 +210,7 @@ _PRESIDIO_ENTITIES = [
     # PII
     "CREDIT_CARD", "CRYPTO", "EMAIL_ADDRESS", "IBAN_CODE", "IP_ADDRESS",
     "PERSON", "PHONE_NUMBER", "US_SSN", "US_PASSPORT", "US_BANK_NUMBER",
-    "MEDICAL_LICENSE", "US_ITIN",
+    "US_ITIN",
     # Custom secrets
     "SECRET_KEY", "PEM_KEY", "BEARER_TOKEN", "CONNECTION_STRING",
     "AWS_KEY", "GITHUB_TOKEN",
@@ -219,34 +219,59 @@ _PRESIDIO_ENTITIES = [
 _PRESIDIO_SCORE_THRESHOLD = 0.5
 
 
+_CHUNK_SIZE = 900_000  # stay under spaCy's 1M char limit
+
+
 def _presidio_scrub(text: str) -> tuple[str, int]:
     from presidio_anonymizer.entities import OperatorConfig
 
     analyzer, engine = _get_presidio()
 
-    results = analyzer.analyze(
-        text=text,
-        language="en",
-        entities=_PRESIDIO_ENTITIES,
-        score_threshold=_PRESIDIO_SCORE_THRESHOLD,
-    )
-    if not results:
-        return text, 0
+    operators = {
+        "DEFAULT": OperatorConfig("replace", {"new_value": _PII_REDACTED}),
+        "SECRET_KEY": OperatorConfig("replace", {"new_value": _REDACTED}),
+        "PEM_KEY": OperatorConfig("replace", {"new_value": _REDACTED}),
+        "BEARER_TOKEN": OperatorConfig("replace", {"new_value": _REDACTED}),
+        "CONNECTION_STRING": OperatorConfig("replace", {"new_value": _REDACTED}),
+        "AWS_KEY": OperatorConfig("replace", {"new_value": _REDACTED}),
+        "GITHUB_TOKEN": OperatorConfig("replace", {"new_value": _REDACTED}),
+    }
 
-    anonymized = engine.anonymize(
-        text=text,
-        analyzer_results=results,
-        operators={
-            "DEFAULT": OperatorConfig("replace", {"new_value": _PII_REDACTED}),
-            "SECRET_KEY": OperatorConfig("replace", {"new_value": _REDACTED}),
-            "PEM_KEY": OperatorConfig("replace", {"new_value": _REDACTED}),
-            "BEARER_TOKEN": OperatorConfig("replace", {"new_value": _REDACTED}),
-            "CONNECTION_STRING": OperatorConfig("replace", {"new_value": _REDACTED}),
-            "AWS_KEY": OperatorConfig("replace", {"new_value": _REDACTED}),
-            "GITHUB_TOKEN": OperatorConfig("replace", {"new_value": _REDACTED}),
-        },
-    )
-    return anonymized.text, len(results)
+    # Split into chunks on newline boundaries to stay under spaCy's limit.
+    if len(text) <= _CHUNK_SIZE:
+        chunks = [text]
+    else:
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(start + _CHUNK_SIZE, len(text))
+            if end < len(text):
+                # Break at last newline within the chunk
+                nl = text.rfind("\n", start, end)
+                if nl > start:
+                    end = nl + 1
+            chunks.append(text[start:end])
+            start = end
+
+    total_redactions = 0
+    scrubbed_parts = []
+    for chunk in chunks:
+        results = analyzer.analyze(
+            text=chunk,
+            language="en",
+            entities=_PRESIDIO_ENTITIES,
+            score_threshold=_PRESIDIO_SCORE_THRESHOLD,
+        )
+        if results:
+            anonymized = engine.anonymize(
+                text=chunk, analyzer_results=results, operators=operators,
+            )
+            scrubbed_parts.append(anonymized.text)
+            total_redactions += len(results)
+        else:
+            scrubbed_parts.append(chunk)
+
+    return "".join(scrubbed_parts), total_redactions
 
 
 # =============================================================================

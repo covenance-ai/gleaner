@@ -21,6 +21,7 @@ jobs:
             --with fastapi --with uvicorn \
             --with google-auth --with google-cloud-firestore --with google-cloud-storage \
             --with piicleaner --with detect-secrets \
+            --with pyarrow \
             pytest tests/ -v
         env:
           GLEANER_MOCK: "1"

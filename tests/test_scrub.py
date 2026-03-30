@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import json
 
-from gleaner.scrub import ScrubStats, scrub_text
+import pytest
+
+from gleaner.scrub import SCRUB_ENGINE, ScrubStats, scrub_text
+
+is_presidio = SCRUB_ENGINE == "presidio"
+is_legacy = not is_presidio
 
 
 def test_scrub_redacts_api_keys():
@@ -170,21 +175,23 @@ class TestScrubRealisticTranscript:
         assert "END RSA PRIVATE KEY" not in scrubbed
         assert stats.redactions > 0
 
-    def test_phone_number_not_caught(self):
-        """Known gap: piicleaner does not catch US phone numbers in JSONL context."""
+    def test_phone_number(self):
+        """Presidio catches phone numbers; legacy piicleaner does not."""
         transcript = _make_realistic_transcript(
             "Contact: John Smith\nPhone: (555) 867-5309\nRole: Admin"
         )
         scrubbed, stats = scrub_text(transcript)
-        # piicleaner misses this — documenting the gap
-        assert "867-5309" in scrubbed
-        assert stats.redactions == 0
+        if is_presidio:
+            assert "867-5309" not in scrubbed
+            assert stats.redactions > 0
+        else:
+            assert "867-5309" in scrubbed
+            assert stats.redactions == 0
 
-    def test_safe_transcript_zero_redactions(self):
-        """A transcript with no PII should produce zero redactions."""
+    def test_safe_transcript_preserves_content(self):
+        """A transcript with no PII should preserve the actual content."""
         transcript = _make_realistic_transcript(
-            "def hello():\n    return 'Hello, World!'\n"
+            "def add(a, b):\n    return a + b\n"
         )
         scrubbed, stats = scrub_text(transcript)
-        assert "Hello, World!" in scrubbed
-        assert stats.redactions == 0
+        assert "return a + b" in scrubbed

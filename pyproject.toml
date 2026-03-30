@@ -16,6 +16,11 @@ gleaner-pull = "gleaner.pull:main"
 pull = [
     "pyarrow",
 ]
+presidio = [
+    "presidio-analyzer",
+    "presidio-anonymizer",
+    "spacy",
+]
 
 [build-system]
 requires = ["hatchling"]

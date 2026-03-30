@@ -129,12 +129,18 @@ _presidio_engine = None
 
 
 def _get_presidio():
-    """Lazy-init Presidio analyzer with custom secret recognizers."""
+    """Lazy-init Presidio analyzer with pattern-only recognizers (no spaCy NER).
+
+    SpacyRecognizer (PERSON, LOCATION, NRP) is the slow part (~15x overhead).
+    We skip it and rely on the built-in pattern recognizers (credit cards,
+    emails, phones, IPs, SSNs, etc.) plus our custom secret patterns.
+    """
     global _presidio_analyzer, _presidio_engine
     if _presidio_analyzer is not None:
         return _presidio_analyzer, _presidio_engine
 
     from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
+    from presidio_analyzer.nlp_engine import SpacyNlpEngine
     from presidio_anonymizer import AnonymizerEngine
 
     # Custom recognizers for secrets that Presidio doesn't cover
@@ -192,7 +198,21 @@ def _get_presidio():
         ),
     ]
 
-    analyzer = AnalyzerEngine()
+    # Use a blank spaCy model (tokenizer only, no NER/parser).
+    # This avoids loading en_core_web_* and the expensive NER pass.
+    import spacy
+    blank_nlp = spacy.blank("en")
+    blank_nlp.max_length = 10_000_000
+    nlp_engine = SpacyNlpEngine(models=[{"lang_code": "en", "model_name": "en_core_web_sm"}])
+    nlp_engine.nlp = {"en": blank_nlp}  # inject blank model, skip load()
+    analyzer = AnalyzerEngine(nlp_engine=nlp_engine, supported_languages=["en"])
+
+    # Remove SpacyRecognizer — requires NER which the blank model doesn't have.
+    analyzer.registry.recognizers = [
+        r for r in analyzer.registry.recognizers
+        if type(r).__name__ != "SpacyRecognizer"
+    ]
+
     for recognizer in secret_patterns:
         analyzer.registry.add_recognizer(recognizer)
 
@@ -209,14 +229,13 @@ def _get_presidio():
 _PRESIDIO_ENTITIES = [
     # PII
     "CREDIT_CARD", "CRYPTO", "EMAIL_ADDRESS", "IBAN_CODE", "IP_ADDRESS",
-    "PERSON", "PHONE_NUMBER", "US_SSN", "US_PASSPORT", "US_BANK_NUMBER",
-    "US_ITIN",
+    "PHONE_NUMBER", "US_SSN", "US_PASSPORT", "US_BANK_NUMBER", "US_ITIN",
     # Custom secrets
     "SECRET_KEY", "PEM_KEY", "BEARER_TOKEN", "CONNECTION_STRING",
     "AWS_KEY", "GITHUB_TOKEN",
 ]
 
-_PRESIDIO_SCORE_THRESHOLD = 0.5
+_PRESIDIO_SCORE_THRESHOLD = 0.4
 
 
 _CHUNK_SIZE = 900_000  # stay under spaCy's 1M char limit

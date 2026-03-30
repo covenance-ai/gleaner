@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from gleaner.pull import _flatten_session, _load_latest_timestamp, _merge_parquet, _save_parquet
+from gleaner.tags import tag_session
 
 
 def _make_session(session_id, user="alice", project="proj", uploaded_at="2026-03-20T10:00:00+00:00"):
@@ -118,5 +119,63 @@ class TestParquetRoundTrip:
             "cwd", "message_count", "user_message_count", "assistant_message_count",
             "tool_use_count", "tool_counts_json", "first_timestamp", "last_timestamp",
             "transcript_size", "transcript_gz_size", "uploaded_at", "redactions",
+            "source", "task_type",
         }
         assert set(table.column_names) == expected
+
+
+class TestTagSession:
+    """tag_session classifies sessions by source and task type."""
+
+    def test_human_development(self):
+        tags = tag_session("my-project", "fix the login bug", "raven", "/home/me")
+        assert tags["source"] == "human"
+        assert tags["task_type"] == "development"
+
+    def test_kodo_swe_bench(self):
+        tags = tag_session(
+            "-private-var-folders-kodo",
+            "Fix the following GitHub issue in this repository.",
+            "openclaw-1", "",
+        )
+        assert tags["source"] == "kodo"
+        assert tags["task_type"] == "swe_bench"
+
+    def test_kodo_by_project_name(self):
+        tags = tag_session("-Users-ikamen-soft-fun-kodo", "some task", "raven", "/x")
+        assert tags["source"] == "kodo"
+
+    def test_kodo_by_empty_cwd_on_openclaw(self):
+        tags = tag_session("-root-repos-foo", "some task", "openclaw-1", "")
+        assert tags["source"] == "kodo"
+
+    def test_kodo_merge_conflict(self):
+        tags = tag_session("some-kodo-proj", "Resolve the merge conflicts in this project.", "openclaw-1", "")
+        assert tags["task_type"] == "merge_conflict"
+
+    def test_kodo_verification(self):
+        tags = tag_session("some-kodo-proj", "The orchestrator claims the following goal is complete:", "openclaw-1", "")
+        assert tags["task_type"] == "verification"
+
+    def test_kodo_harness_in_tmp(self):
+        """Kodo sessions in temp dirs that aren't SWE-bench are kodo_harness."""
+        tags = tag_session(
+            "-private-var-folders-nd-T-tmp-abc123",
+            "In the project at /tmp/abc, create tests.",
+            "raven", "",
+        )
+        assert tags["source"] == "kodo"
+        assert tags["task_type"] == "kodo_harness"
+
+    def test_e2e_test(self):
+        tags = tag_session("gleaner-e2e", "List the Python files.", "raven", "/tmp")
+        assert tags["source"] == "test"
+        assert tags["task_type"] == "test"
+
+    def test_swe_bench_by_instance_in_project(self):
+        tags = tag_session(
+            "-tmp-instance_django__django-12345-kodo",
+            "some topic",
+            "openclaw-1", "",
+        )
+        assert tags["task_type"] == "swe_bench"

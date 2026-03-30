@@ -14,7 +14,7 @@ function apiPost(path, body) {
     headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).then(r => {
-    if (!r.ok) return r.json().then(e => { throw new Error(e.detail || r.status); });
+    if (!r.ok) return r.json().catch(() => ({})).then(e => { throw new Error(e.detail || r.statusText); });
     return r.json();
   });
 }

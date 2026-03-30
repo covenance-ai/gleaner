@@ -409,6 +409,19 @@ def get_session_transcript(session_id: str) -> bytes | None:
     return blob.download_as_bytes()
 
 
+def delete_session(session_id: str) -> bool:
+    """Delete a session from Firestore and GCS. Returns True if it existed."""
+    doc_ref = _db().collection("sessions").document(session_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        return False
+    doc_ref.delete()
+    blob = _bucket().blob(f"sessions/{session_id}.jsonl.gz")
+    if blob.exists():
+        blob.delete()
+    return True
+
+
 def list_sessions(
     user: str | None = None,
     project: str | None = None,

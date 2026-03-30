@@ -55,14 +55,23 @@ def _flatten_session(s: dict) -> dict:
     uploaded_at = s.get("uploaded_at", "")
     if hasattr(uploaded_at, "isoformat"):
         uploaded_at = uploaded_at.isoformat()
+
+    from gleaner.tags import tag_session
+
+    project = s.get("project", "")
+    topic = s.get("topic", "")
+    host = prov.get("host", "")
+    cwd = s.get("cwd", "")
+    tags = tag_session(project, topic, host, cwd)
+
     return {
         "session_id": s.get("session_id", ""),
         "user": prov.get("user", ""),
-        "host": prov.get("host", ""),
+        "host": host,
         "platform": prov.get("platform", ""),
-        "project": s.get("project", ""),
-        "topic": s.get("topic", ""),
-        "cwd": s.get("cwd", ""),
+        "project": project,
+        "topic": topic,
+        "cwd": cwd,
         "message_count": s.get("message_count", 0),
         "user_message_count": s.get("user_message_count", 0),
         "assistant_message_count": s.get("assistant_message_count", 0),
@@ -74,6 +83,8 @@ def _flatten_session(s: dict) -> dict:
         "transcript_gz_size": s.get("transcript_gz_size", 0),
         "uploaded_at": uploaded_at,
         "redactions": s.get("redactions") or 0,
+        "source": tags["source"],
+        "task_type": tags["task_type"],
     }
 
 

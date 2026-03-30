@@ -30,6 +30,12 @@ _SECRET_ASSIGNMENT_RE = re.compile(
     """
 )
 
+_PEM_BLOCK_RE = re.compile(
+    r"-----BEGIN [A-Z0-9 ]+(?:PRIVATE KEY|KEY BLOCK)-----"
+    r"[\s\S]*?"
+    r"-----END [A-Z0-9 ]+(?:PRIVATE KEY|KEY BLOCK)-----"
+)
+
 _pii_cleaner = None
 
 
@@ -63,6 +69,11 @@ def _scrub_secrets(text: str) -> tuple[str, int]:
     from detect_secrets.settings import default_settings
 
     redactions = 0
+
+    # PEM blocks first — detect-secrets only catches the header, not the body.
+    text, pem_count = _PEM_BLOCK_RE.subn("[secret-redacted]", text)
+    redactions += pem_count
+
     with tempfile.TemporaryDirectory() as tmpdir:
         sample = Path(tmpdir) / "archive.txt"
         sample.write_text(text, encoding="utf-8")
@@ -84,7 +95,9 @@ def _scrub_secrets(text: str) -> tuple[str, int]:
         return f"{match.group('prefix')}{quote}[secret-redacted]{quote}"
 
     text, assignment_count = _SECRET_ASSIGNMENT_RE.subn(redact_assignment, text)
-    return text, redactions + assignment_count
+    redactions += assignment_count
+
+    return text, redactions
 
 
 def scrub_text(text: str) -> tuple[str, ScrubStats]:

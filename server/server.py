@@ -204,7 +204,10 @@ def get_config():
 @app.post("/api/session")
 async def upload_session(request: Request, authorization: str = Header("")):
     token_data = _require_token(authorization)
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
 
     session_id = body.get("session_id")
     if not session_id:
@@ -328,7 +331,10 @@ async def onboard(request: Request, authorization: str = Header("")):
     if not email or token_data.get("auth_type") != "google":
         raise HTTPException(400, "Google authentication required for onboarding")
 
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
     username = body.get("username", "").strip().lower()
 
     if not USERNAME_RE.match(username):
@@ -374,7 +380,10 @@ async def create_my_token(request: Request, authorization: str = Header("")):
     email = _get_user_email(token_data)
     username = token_data.get("name", "")
 
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
     token_name = body.get("name", "")
 
     raw_token = db.create_user_token(
@@ -407,7 +416,10 @@ def revoke_my_token(id_or_prefix: str, authorization: str = Header("")):
 @app.post("/admin/tokens")
 async def create_token(request: Request, authorization: str = Header("")):
     _require_admin(authorization)
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
     name = body.get("name", "")
     if not name:
         raise HTTPException(400, "name required")

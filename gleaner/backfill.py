@@ -21,7 +21,8 @@ import urllib.request
 from pathlib import Path
 
 from gleaner.config import get_credentials
-from gleaner.upload import parse_transcript, upload
+from gleaner.tags import tag_session
+from gleaner.upload import collect_provenance, parse_transcript, upload
 
 CLAUDE_DIR = Path.home() / ".claude"
 
@@ -86,12 +87,20 @@ def run(dry_run: bool = False, project: str | None = None, force: bool = False):
 
     success = 0
     failed = 0
+    skipped = 0
     for i, (sid, proj, path) in enumerate(sessions, 1):
         try:
             metadata = parse_transcript(path)
+            if metadata.pop("worthless", False):
+                skipped += 1
+                continue
             metadata["cwd"] = ""
             metadata["session_id"] = sid
             metadata["project"] = proj
+            provenance = collect_provenance()
+            tags = tag_session(proj, metadata.get("topic", ""), provenance["host"], "")
+            metadata["source"] = tags["source"]
+            metadata["task_type"] = tags["task_type"]
             upload(sid, metadata, path)
             success += 1
             print(f"  [{i}/{len(sessions)}] {sid[:12]}... uploaded")
@@ -99,7 +108,7 @@ def run(dry_run: bool = False, project: str | None = None, force: bool = False):
             failed += 1
             print(f"  [{i}/{len(sessions)}] {sid[:12]}... FAILED: {e}")
 
-    print(f"\nDone: {success} uploaded, {failed} failed")
+    print(f"\nDone: {success} uploaded, {skipped} skipped (worthless), {failed} failed")
 
 
 def main():

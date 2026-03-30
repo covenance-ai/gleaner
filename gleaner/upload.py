@@ -79,6 +79,31 @@ def parse_transcript(path: Path) -> dict:
     if len(topic) > 200:
         topic = topic[:200] + "..."
 
+    # Check if the session is worthless (rate-limited, empty, etc.)
+    worthless = False
+    if not user_messages:
+        worthless = True
+    elif not assistant_messages:
+        worthless = True
+    else:
+        # Check if every assistant response is a rate-limit / error (no real work done)
+        all_trivial = True
+        for m in assistant_messages:
+            content = m.get("message", {}).get("content", "")
+            text = ""
+            if isinstance(content, str):
+                text = content
+            elif isinstance(content, list):
+                text = " ".join(
+                    b.get("text", "") for b in content
+                    if isinstance(b, dict) and b.get("type") == "text"
+                )
+            if "hit your limit" not in text.lower():
+                all_trivial = False
+                break
+        if all_trivial:
+            worthless = True
+
     return {
         "message_count": len(messages),
         "user_message_count": len(user_messages),
@@ -88,6 +113,7 @@ def parse_transcript(path: Path) -> dict:
         "first_timestamp": first_ts,
         "last_timestamp": last_ts,
         "topic": topic,
+        "worthless": worthless,
     }
 
 
@@ -169,9 +195,21 @@ def main():
         return
 
     metadata = parse_transcript(transcript_path)
+    if metadata.pop("worthless", False):
+        return
+
     metadata["cwd"] = cwd
     metadata["session_id"] = session_id
     metadata["project"] = transcript_path.parent.name
+
+    from gleaner.tags import tag_session
+
+    provenance = collect_provenance()
+    # Prefer explicit env var (set by orchestrators like kodo) over heuristics
+    env_source = os.environ.get("CLAUDE_SESSION_SOURCE", "")
+    tags = tag_session(metadata["project"], metadata.get("topic", ""), provenance["host"], cwd)
+    metadata["source"] = env_source or tags["source"]
+    metadata["task_type"] = tags["task_type"]
 
     upload(session_id, metadata, transcript_path)
 

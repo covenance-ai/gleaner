@@ -1,10 +1,11 @@
 """Scrub PII and secrets from text before upload.
 
-Two backends, selected via GLEANER_SCRUB_ENGINE env var:
-  "legacy"   — piicleaner + detect-secrets + regex (default)
-  "presidio" — Microsoft Presidio with spaCy NER + custom secret recognizers
+Two backends:
+  "legacy"   — piicleaner + detect-secrets + regex
+  "presidio" — Microsoft Presidio pattern recognizers + custom secret patterns
 
-Set GLEANER_SCRUB_ENGINE=presidio to opt in to the new backend.
+Auto-selects presidio when installed, falls back to legacy.
+Override with GLEANER_SCRUB_ENGINE=legacy or GLEANER_SCRUB_ENGINE=presidio.
 """
 
 from __future__ import annotations
@@ -17,8 +18,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _log = logging.getLogger(__name__)
-
-SCRUB_ENGINE = os.environ.get("GLEANER_SCRUB_ENGINE", "legacy")
 
 _REDACTED = "[secret-redacted]"
 _PII_REDACTED = "[pii-redacted]"
@@ -44,6 +43,26 @@ _PEM_BLOCK_RE = re.compile(
     r"[\s\S]*?"
     r"-----END [A-Z0-9 ]+(?:PRIVATE KEY|KEY BLOCK)-----"
 )
+
+
+def _has_presidio() -> bool:
+    try:
+        import presidio_analyzer  # noqa: F401
+        import presidio_anonymizer  # noqa: F401
+        import spacy  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _resolve_engine() -> str:
+    explicit = os.environ.get("GLEANER_SCRUB_ENGINE", "")
+    if explicit:
+        return explicit
+    return "presidio" if _has_presidio() else "legacy"
+
+
+SCRUB_ENGINE = _resolve_engine()
 
 
 @dataclass(frozen=True)

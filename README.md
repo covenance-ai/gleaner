@@ -4,6 +4,8 @@ Harvest and centralize Claude Code session transcripts across your team.
 
 Gleaner automatically uploads complete session transcripts to central storage when a session ends. It gives your team visibility into how Claude Code is being used: which tools, which projects, how often, and the full conversation history.
 
+https://gleaner-430011644943.europe-west1.run.app/gleaner/
+
 ## Quick start
 
 ```bash
@@ -11,7 +13,7 @@ Gleaner automatically uploads complete session transcripts to central storage wh
 uv tool install git+https://github.com/covenance-ai/gleaner
 
 # Configure and install the session hook
-gleaner setup https://your-server.run.app/gleaner gl_your_token
+gleaner setup https://gleaner-430011644943.europe-west1.run.app gl_your_token
 
 # Check everything is working
 gleaner status

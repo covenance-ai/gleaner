@@ -17,10 +17,17 @@ import urllib.request
 from gleaner.config import (
     CLAUDE_SETTINGS,
     CONFIG_FILE,
+    CURSOR_HOOKS,
     get_credentials,
+    install_backfill_agent,
+    install_cursor_hook,
     install_hook,
+    is_backfill_agent_installed,
+    is_cursor_hook_installed,
     is_hook_installed,
     read_config,
+    remove_backfill_agent,
+    remove_cursor_hook,
     remove_hook,
     write_config,
 )
@@ -43,9 +50,19 @@ def cmd_setup(args):
     print(f"  Config  saved to {CONFIG_FILE}")
 
     if install_hook():
-        print(f"  Hook    installed in {CLAUDE_SETTINGS}")
+        print(f"  Claude  hook installed in {CLAUDE_SETTINGS}")
     else:
-        print(f"  Hook    already in {CLAUDE_SETTINGS}")
+        print(f"  Claude  hook already in {CLAUDE_SETTINGS}")
+
+    if install_cursor_hook():
+        print(f"  Cursor  hook installed in {CURSOR_HOOKS}")
+    else:
+        print(f"  Cursor  hook already in {CURSOR_HOOKS}")
+
+    if install_backfill_agent():
+        print(f"  Sync    cursor backfill agent started (every 5 min)")
+    else:
+        print(f"  Sync    cursor backfill agent already running")
 
     user = _check_server(args.url, args.token)
     if user:
@@ -53,12 +70,11 @@ def cmd_setup(args):
     else:
         print(f"  Auth    could not verify — check URL and token")
 
-    print("\nDone. New Claude Code sessions will upload automatically.")
+    print("\nDone. New sessions will upload automatically.")
 
 
 def cmd_status(args):
     url, token = get_credentials()
-    hook = is_hook_installed()
 
     print("Gleaner\n")
 
@@ -70,7 +86,9 @@ def cmd_status(args):
 
     print(f"  URL     {url or '—'}")
     print(f"  Token   {token[:8]}..." if token else "  Token   —")
-    print(f"  Hook    {'enabled' if hook else 'disabled'}")
+    print(f"  Claude  hook {'enabled' if is_hook_installed() else 'disabled'}")
+    print(f"  Cursor  hook {'enabled' if is_cursor_hook_installed() else 'disabled'}")
+    print(f"  Sync    {'running' if is_backfill_agent_installed() else 'stopped'}")
 
     if url and token:
         user = _check_server(url, token)
@@ -79,17 +97,23 @@ def cmd_status(args):
 
 
 def cmd_on(args):
-    if install_hook():
-        print("Hook enabled")
+    claude_new = install_hook()
+    cursor_new = install_cursor_hook()
+    backfill_new = install_backfill_agent()
+    if claude_new or cursor_new or backfill_new:
+        print("Hooks enabled")
     else:
-        print("Hook already enabled")
+        print("Hooks already enabled")
 
 
 def cmd_off(args):
-    if remove_hook():
-        print("Hook disabled")
+    claude_removed = remove_hook()
+    cursor_removed = remove_cursor_hook()
+    backfill_removed = remove_backfill_agent()
+    if claude_removed or cursor_removed or backfill_removed:
+        print("Hooks disabled")
     else:
-        print("Hook not installed")
+        print("Hooks not installed")
 
 
 def cmd_auth(args):
@@ -127,6 +151,12 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="List without uploading")
     p.add_argument("--project", type=str, help="Filter by project name")
     p.add_argument("--force", action="store_true", help="Re-upload existing")
+    p.add_argument(
+        "--source",
+        choices=["claude", "cursor"],
+        default="claude",
+        help="Session source (default: claude)",
+    )
 
     p = sub.add_parser("pull", help="Download sessions for local analysis")
     p.add_argument("-o", "--output", help="Output directory (default: ~/.gleaner)")
@@ -149,7 +179,7 @@ def main():
     if args.command == "backfill":
         from gleaner.backfill import run
 
-        run(dry_run=args.dry_run, project=args.project, force=args.force)
+        run(dry_run=args.dry_run, project=args.project, force=args.force, source=args.source)
     elif args.command == "pull":
         from gleaner.pull import run as pull_run
 

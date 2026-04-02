@@ -21,7 +21,11 @@ import db
 
 
 def is_worthless_transcript(transcript_gz: bytes) -> str | None:
-    """Check if a transcript is worthless. Returns reason string or None."""
+    """Check if a transcript is worthless. Returns reason string or None.
+
+    Worthless = no human intent (no user messages). Sessions with user
+    messages are kept even if rate-limited or missing assistant responses.
+    """
     try:
         raw = gzip.decompress(transcript_gz).decode("utf-8")
     except Exception:
@@ -35,28 +39,12 @@ def is_worthless_transcript(transcript_gz: bytes) -> str | None:
             except json.JSONDecodeError:
                 continue
 
-    user_msgs = [e for e in entries if e.get("type") == "user"]
-    asst_msgs = [e for e in entries if e.get("type") == "assistant"]
-
-    if not user_msgs:
+    has_user = any(
+        (e.get("type") or e.get("role")) == "user" for e in entries
+    )
+    if not has_user:
         return "no_user_messages"
-    if not asst_msgs:
-        return "no_assistant_messages"
-
-    # Check if every assistant response is rate-limited
-    for m in asst_msgs:
-        content = m.get("message", {}).get("content", "")
-        text = ""
-        if isinstance(content, str):
-            text = content
-        elif isinstance(content, list):
-            text = " ".join(
-                b.get("text", "") for b in content
-                if isinstance(b, dict) and b.get("type") == "text"
-            )
-        if "hit your limit" not in text.lower():
-            return None  # at least one real response
-    return "rate_limited"
+    return None
 
 
 def scan_and_purge(dry_run: bool = False, workers: int = 6):

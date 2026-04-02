@@ -1,12 +1,14 @@
-"""Upload existing Claude Code session transcripts to Gleaner.
+"""Upload existing session transcripts to Gleaner.
 
-Scans ~/.claude/projects/ for JSONL session files and uploads any that
-haven't been uploaded yet (checks with the server first).
+Supports both Claude Code (~/.claude/projects/) and Cursor
+(~/.cursor/projects/agent-transcripts/) sessions through a
+unified pipeline.
 
 Usage:
-    gleaner-backfill                  # upload all sessions
-    gleaner-backfill --dry-run        # just list what would be uploaded
-    gleaner-backfill --project foo    # only sessions from project "foo"
+    gleaner backfill                          # Claude Code (default)
+    gleaner backfill --source cursor          # Cursor sessions
+    gleaner backfill --source cursor --dry-run
+    gleaner backfill --project foo            # filter by project name
 
 Config via environment variables:
     GLEANER_URL   - Base URL of the Gleaner API
@@ -21,6 +23,7 @@ import urllib.request
 from pathlib import Path
 
 from gleaner.config import get_credentials
+from gleaner.cursor import find_all_cursor_sessions
 from gleaner.tags import tag_session
 from gleaner.upload import collect_provenance, parse_transcript, upload
 
@@ -44,7 +47,10 @@ def get_existing_session_ids() -> set[str]:
 
 
 def find_all_sessions(project_filter: str | None = None) -> list[tuple[str, str, Path]]:
-    """Find all session JSONL files. Returns [(session_id, project, path), ...]."""
+    """Find all Claude Code session JSONL files.
+
+    Returns [(session_id, project, path), ...].
+    """
     projects_dir = CLAUDE_DIR / "projects"
     if not projects_dir.exists():
         return []
@@ -62,15 +68,26 @@ def find_all_sessions(project_filter: str | None = None) -> list[tuple[str, str,
     return sessions
 
 
-def run(dry_run: bool = False, project: str | None = None, force: bool = False):
-    """Run the backfill. Called from CLI or gleaner backfill subcommand."""
+def run(
+    dry_run: bool = False,
+    project: str | None = None,
+    force: bool = False,
+    source: str = "claude",
+):
+    """Run the backfill for the given source."""
     url, token = get_credentials()
     if not url or not token:
         print("Error: not configured. Run 'gleaner setup URL TOKEN' first.", file=sys.stderr)
         sys.exit(1)
 
-    sessions = find_all_sessions(project)
-    print(f"Found {len(sessions)} session(s) on disk")
+    ide = "cursor" if source == "cursor" else "claude_code"
+
+    if source == "cursor":
+        sessions = find_all_cursor_sessions(project)
+    else:
+        sessions = find_all_sessions(project)
+
+    print(f"Found {len(sessions)} {source} session(s) on disk")
 
     if not force:
         existing = get_existing_session_ids()
@@ -98,9 +115,12 @@ def run(dry_run: bool = False, project: str | None = None, force: bool = False):
             metadata["session_id"] = sid
             metadata["project"] = proj
             provenance = collect_provenance()
-            tags = tag_session(proj, metadata.get("topic", ""), provenance["host"], "")
+            tags = tag_session(proj, metadata.get("topic", ""), provenance["host"], "", ide=ide)
             metadata["source"] = tags["source"]
             metadata["task_type"] = tags["task_type"]
+            metadata["ide"] = ide
+            metadata["aborted"] = False
+            metadata["has_errors"] = False
             upload(sid, metadata, path)
             success += 1
             print(f"  [{i}/{len(sessions)}] {sid[:12]}... uploaded")
@@ -113,13 +133,19 @@ def run(dry_run: bool = False, project: str | None = None, force: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Upload existing Claude Code sessions to Gleaner"
+        description="Upload existing sessions to Gleaner"
     )
     parser.add_argument("--dry-run", action="store_true", help="List without uploading")
     parser.add_argument("--project", type=str, help="Filter by project name")
     parser.add_argument("--force", action="store_true", help="Re-upload existing")
+    parser.add_argument(
+        "--source",
+        choices=["claude", "cursor"],
+        default="claude",
+        help="Session source (default: claude)",
+    )
     args = parser.parse_args()
-    run(dry_run=args.dry_run, project=args.project, force=args.force)
+    run(dry_run=args.dry_run, project=args.project, force=args.force, source=args.source)
 
 
 if __name__ == "__main__":

@@ -119,7 +119,7 @@ class TestParquetRoundTrip:
             "cwd", "message_count", "user_message_count", "assistant_message_count",
             "tool_use_count", "tool_counts_json", "first_timestamp", "last_timestamp",
             "transcript_size", "transcript_gz_size", "uploaded_at", "redactions",
-            "source", "task_type",
+            "source", "task_type", "ide", "aborted", "has_errors",
         }
         assert set(table.column_names) == expected
 

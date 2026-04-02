@@ -1,0 +1,241 @@
+digraph gleaner_data {
+    rankdir=TB
+    bgcolor="white"
+    fontname="Helvetica"
+    node [fontname="Helvetica", fontsize=11, style="filled", shape=box]
+    edge [fontname="Helvetica", fontsize=9, color="#555555"]
+    newrank=true
+    compound=true
+
+    // ── Source ──
+    subgraph cluster_local {
+        label="  Local Machine  "
+        style="dashed,rounded"
+        color="#999999"
+        fontcolor="#666666"
+        fontsize=12
+        margin=16
+
+        claude_sessions [
+            label=<
+            <table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td><b>~/.claude/projects/*/*.jsonl</b></td></tr>
+            <tr><td><font point-size="9" color="#555555">JSONL &#8212; {type, timestamp, message}</font></td></tr>
+            <tr><td><font point-size="9" color="#555555">5&#8211;200 KB per session</font></td></tr>
+            </table>>
+            shape=none
+        ]
+
+        config [
+            label=<
+            <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#E8F5E9" color="#43A047" style="rounded">
+            <tr><td><font point-size="9"><b>~/.config/gleaner.json</b><br/>url + token</font></td></tr>
+            </table>>
+            shape=none
+        ]
+
+        hook [
+            label=<
+            <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#E8F5E9" color="#43A047" style="rounded">
+            <tr><td><font point-size="9"><b>~/.claude/settings.json</b><br/>SessionEnd hook</font></td></tr>
+            </table>>
+            shape=none
+        ]
+
+        // ── Pull output (local) ──
+        subgraph cluster_pull {
+            label="  Pull Output (~/.gleaner/)  "
+            style="filled,rounded"
+            fillcolor="#E0F2F1"
+            color="#00897B"
+            fontcolor="#004D40"
+            fontsize=11
+            margin=12
+
+            parquet [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#B2DFDB" color="#00897B" style="rounded">
+                <tr><td><b>sessions.parquet</b></td></tr>
+                <tr><td><font point-size="8">Parquet + Zstd compression</font></td></tr>
+                <tr><td><font point-size="8">All session metadata columns</font></td></tr>
+                <tr><td><font point-size="8">Incremental sync via max(uploaded_at)</font></td></tr>
+                </table>>
+                shape=none
+            ]
+
+            pulled_transcripts [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#B2DFDB" color="#00897B" style="rounded">
+                <tr><td><b>transcripts/{id}.jsonl.gz</b></td></tr>
+                <tr><td><font point-size="8">Optional (--transcripts flag)</font></td></tr>
+                <tr><td><font point-size="8">Skips already downloaded</font></td></tr>
+                </table>>
+                shape=none
+            ]
+        }
+    }
+
+    // ── Upload pipeline ──
+    subgraph cluster_pipeline {
+        label="  Upload Pipeline (gleaner-upload)  "
+        style="filled,rounded"
+        fillcolor="#FFF8E1"
+        color="#FFB300"
+        fontcolor="#E65100"
+        fontsize=12
+        margin=12
+
+        parse [label="Parse\nmetadata" shape=box style="filled,rounded" fillcolor="#FFE082" color="#FFB300"]
+        scrub [label="Scrub PII\n(Presidio)" shape=box style="filled,rounded" fillcolor="#FFE082" color="#FFB300"]
+        tag   [label="Tag source\n+ task_type" shape=box style="filled,rounded" fillcolor="#FFE082" color="#FFB300"]
+        gzip  [label="Gzip" shape=box style="filled,rounded" fillcolor="#FFE082" color="#FFB300"]
+
+        parse -> scrub -> tag -> gzip
+    }
+
+    // ── GCP wrapper ──
+    subgraph cluster_gcp {
+        label=<<table border="0" cellborder="0"><tr><td width="48"><img src="/Users/ikamen/ai-workspace/ilya/gleaner/icons/cloud.png"/></td><td><font point-size="13"> Google Cloud (covenance-469421) </font></td></tr></table>>
+        style="rounded"
+        color="#8E24AA"
+        fontcolor="#6A1B9A"
+        fontsize=13
+        margin=20
+        labeljust=l
+
+        // ── Cloud Run ──
+        subgraph cluster_cloudrun {
+            label=<<table border="0" cellborder="0"><tr><td width="32"><img src="/Users/ikamen/ai-workspace/ilya/gleaner/icons/cloud_run.png"/></td><td><font point-size="12"> Cloud Run (europe-west1) </font></td></tr></table>>
+            style="filled,rounded"
+            fillcolor="#E3F2FD"
+            color="#1E88E5"
+            fontcolor="#1565C0"
+            fontsize=12
+            margin=12
+            labeljust=l
+
+            server [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="6" bgcolor="#BBDEFB" color="#1E88E5" style="rounded">
+                <tr><td><b>Gleaner Server (FastAPI)</b></td></tr>
+                <tr><td><font point-size="9">POST /api/session</font></td></tr>
+                <tr><td><font point-size="9">GET /api/stats &#8226; /sessions &#8226; /transcript</font></td></tr>
+                <tr><td><font point-size="9" color="#666666">In-memory stats cache (TTL 300s)</font></td></tr>
+                <tr><td><font point-size="9" color="#666666">256 Mi &#8226; 0&#8211;3 instances</font></td></tr>
+                </table>>
+                shape=none
+            ]
+        }
+
+        // ── Firestore ──
+        subgraph cluster_firestore {
+            label=<<table border="0" cellborder="0"><tr><td width="32"><img src="/Users/ikamen/ai-workspace/ilya/gleaner/icons/firestore.png"/></td><td><font point-size="12"> Firestore </font></td></tr></table>>
+            style="filled,rounded"
+            fillcolor="#EDE7F6"
+            color="#7E57C2"
+            fontcolor="#6A1B9A"
+            fontsize=12
+            margin=12
+            labeljust=l
+
+            fs_sessions [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#D1C4E9" color="#7E57C2" style="rounded">
+                <tr><td><b>sessions</b></td></tr>
+                <tr><td align="left"><font point-size="8">session_id, topic, project, cwd</font></td></tr>
+                <tr><td align="left"><font point-size="8">message/user/assistant/tool counts</font></td></tr>
+                <tr><td align="left"><font point-size="8">tool_counts: {name: count}</font></td></tr>
+                <tr><td align="left"><font point-size="8">first/last_timestamp, uploaded_at</font></td></tr>
+                <tr><td align="left"><font point-size="8">transcript_size, gcs_path</font></td></tr>
+                <tr><td align="left"><font point-size="8">redactions, source, task_type</font></td></tr>
+                <tr><td align="left"><font point-size="8">provenance: {user, host, platform}</font></td></tr>
+                </table>>
+                shape=none
+            ]
+
+            fs_counters [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#D1C4E9" color="#7E57C2" style="rounded">
+                <tr><td><b>counters</b>  (pre-aggregated)</td></tr>
+                <tr><td align="left"><font point-size="8">global: totals + tool_usage</font></td></tr>
+                <tr><td align="left"><font point-size="8">global:daily {date: count}</font></td></tr>
+                <tr><td align="left"><font point-size="8">global:users {user: stats}</font></td></tr>
+                <tr><td align="left"><font point-size="8">global:projects {project: stats}</font></td></tr>
+                <tr><td align="left"><font point-size="8">user:{name} personal breakdown</font></td></tr>
+                </table>>
+                shape=none
+            ]
+
+            fs_tokens [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#D1C4E9" color="#7E57C2" style="rounded">
+                <tr><td><b>tokens</b>  (ID = SHA256)</td></tr>
+                <tr><td align="left"><font point-size="8">name, issued_to, prefix, active</font></td></tr>
+                <tr><td align="left"><font point-size="8">created_at, last_used_at, usage_count</font></td></tr>
+                </table>>
+                shape=none
+            ]
+
+            fs_users [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#D1C4E9" color="#7E57C2" style="rounded">
+                <tr><td><b>users</b>  (ID = email)</td></tr>
+                <tr><td align="left"><font point-size="8">username, display_name, picture</font></td></tr>
+                <tr><td align="left"><font point-size="8">onboarded, created_at</font></td></tr>
+                </table>>
+                shape=none
+            ]
+        }
+
+        // ── GCS ──
+        subgraph cluster_gcs {
+            label=<<table border="0" cellborder="0"><tr><td width="32"><img src="/Users/ikamen/ai-workspace/ilya/gleaner/icons/cloud_storage.png"/></td><td><font point-size="12"> Cloud Storage (gs://gleaner-sessions/) </font></td></tr></table>>
+            style="filled,rounded"
+            fillcolor="#EDE7F6"
+            color="#7E57C2"
+            fontcolor="#6A1B9A"
+            fontsize=12
+            margin=12
+            labeljust=l
+
+            gcs_transcripts [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#D1C4E9" color="#7E57C2" style="rounded">
+                <tr><td><b>sessions/{id}.jsonl.gz</b></td></tr>
+                <tr><td><font point-size="8">Gzip JSONL &#8212; full transcript</font></td></tr>
+                <tr><td><font point-size="8">1&#8211;50 KB compressed</font></td></tr>
+                </table>>
+                shape=none
+            ]
+
+            gcs_backups [
+                label=<
+                <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#D1C4E9" color="#7E57C2" style="rounded">
+                <tr><td><b>backups/{timestamp}/</b></td></tr>
+                <tr><td><font point-size="8">Firestore export snapshots</font></td></tr>
+                </table>>
+                shape=none
+            ]
+        }
+    }
+
+    // ═══ EDGES ═══
+
+    // Upload flow
+    claude_sessions -> parse [label="  SessionEnd hook  " color="#43A047" fontcolor="#2E7D32"]
+    config -> parse [label="url+token" style=dashed color="#AAAAAA" fontcolor="#AAAAAA"]
+    gzip -> server [label="  POST metadata + gzip bytes  " color="#E65100" fontcolor="#E65100" penwidth=1.5]
+
+    // Server to Cloud
+    server -> fs_sessions [label="  store metadata  " color="#1E88E5" fontcolor="#1565C0" penwidth=1.5]
+    server -> fs_counters [label="  update counters  " color="#1E88E5" fontcolor="#1565C0"]
+    server -> gcs_transcripts [label="  upload transcript  " color="#1E88E5" fontcolor="#1565C0" penwidth=1.5]
+    server -> fs_tokens [label="auth" color="#1E88E5" fontcolor="#1565C0" style=dashed dir=both]
+
+    // Backup
+    fs_sessions -> gcs_backups [label="export" style=dashed color="#AAAAAA" fontcolor="#AAAAAA"]
+
+    // Pull flow
+    server -> parquet [xlabel="gleaner pull" color="#00897B" fontcolor="#004D40" penwidth=1.5]
+    server -> pulled_transcripts [xlabel="pull --transcripts" color="#00897B" fontcolor="#004D40"]
+}

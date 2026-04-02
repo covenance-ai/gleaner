@@ -67,6 +67,29 @@ class TestParseTranscript:
         meta = parse_transcript(path)
         assert meta["message_count"] == 1
 
+    def test_worthless_only_when_no_user_messages(self, tmp_jsonl):
+        """Only sessions with zero user messages are worthless."""
+        # No user messages → worthless
+        path = tmp_jsonl([{"type": "assistant", "message": {"content": "hi"}}])
+        assert parse_transcript(path)["worthless"] is True
+
+        # User message but no assistant → still valuable
+        path = tmp_jsonl([{"type": "user", "message": {"content": "hello"}}], "user_only.jsonl")
+        assert parse_transcript(path)["worthless"] is False
+
+        # Empty file → worthless
+        path = tmp_jsonl([], "empty.jsonl")
+        path.write_text("")
+        assert parse_transcript(path)["worthless"] is True
+
+    def test_rate_limited_session_not_worthless(self, tmp_jsonl):
+        """Rate-limited sessions have user intent and are not worthless."""
+        path = tmp_jsonl([
+            {"type": "user", "message": {"content": "fix the bug"}},
+            {"type": "assistant", "message": {"content": "You've hit your limit for the day."}},
+        ])
+        assert parse_transcript(path)["worthless"] is False
+
 
 class TestCollectProvenance:
     """collect_provenance returns the expected keys."""

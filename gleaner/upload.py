@@ -12,6 +12,7 @@ Config via environment variables:
 """
 
 import base64
+import datetime
 import getpass
 import gzip
 import json
@@ -24,8 +25,22 @@ from pathlib import Path
 CLAUDE_DIR = Path.home() / ".claude"
 
 
+def _epoch_to_iso(epoch: float) -> str:
+    """Convert a Unix epoch timestamp to ISO 8601 UTC string."""
+    return datetime.datetime.fromtimestamp(epoch, tz=datetime.timezone.utc).isoformat()
+
+
+def _entry_role(entry: dict) -> str:
+    """Extract the role from a JSONL entry (Claude Code uses 'type', Cursor uses 'role')."""
+    return entry.get("type") or entry.get("role") or ""
+
+
 def parse_transcript(path: Path) -> dict:
-    """Parse a session JSONL file into summary metadata."""
+    """Parse a session JSONL file into summary metadata.
+
+    Handles both Claude Code format (type/timestamp fields) and
+    Cursor agent-transcript format (role field, no timestamps).
+    """
     messages = []
     tool_uses = []
     first_ts = None
@@ -48,16 +63,15 @@ def parse_transcript(path: Path) -> dict:
                     first_ts = ts
                 last_ts = ts
 
-            msg_type = entry.get("type", "")
-            if msg_type == "assistant":
+            if _entry_role(entry) == "assistant":
                 content = entry.get("message", {}).get("content", [])
                 if isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "tool_use":
                             tool_uses.append(block.get("name", "unknown"))
 
-    user_messages = [m for m in messages if m.get("type") == "user"]
-    assistant_messages = [m for m in messages if m.get("type") == "assistant"]
+    user_messages = [m for m in messages if _entry_role(m) == "user"]
+    assistant_messages = [m for m in messages if _entry_role(m) == "assistant"]
 
     tool_counts = {}
     for t in tool_uses:
@@ -79,30 +93,18 @@ def parse_transcript(path: Path) -> dict:
     if len(topic) > 200:
         topic = topic[:200] + "..."
 
-    # Check if the session is worthless (rate-limited, empty, etc.)
-    worthless = False
-    if not user_messages:
-        worthless = True
-    elif not assistant_messages:
-        worthless = True
-    else:
-        # Check if every assistant response is a rate-limit / error (no real work done)
-        all_trivial = True
-        for m in assistant_messages:
-            content = m.get("message", {}).get("content", "")
-            text = ""
-            if isinstance(content, str):
-                text = content
-            elif isinstance(content, list):
-                text = " ".join(
-                    b.get("text", "") for b in content
-                    if isinstance(b, dict) and b.get("type") == "text"
-                )
-            if "hit your limit" not in text.lower():
-                all_trivial = False
-                break
-        if all_trivial:
-            worthless = True
+    # If no timestamps from the file content, fall back to file metadata
+    if first_ts is None:
+        stat = path.stat()
+        # Use birthtime if available (macOS), otherwise mtime
+        ctime = getattr(stat, "st_birthtime", stat.st_mtime)
+        first_ts = _epoch_to_iso(ctime)
+        last_ts = _epoch_to_iso(stat.st_mtime)
+
+    # Worthless = no human intent at all (no user messages).
+    # Sessions with user messages are always worth keeping, even if
+    # rate-limited or missing assistant responses.
+    worthless = not user_messages
 
     return {
         "message_count": len(messages),
@@ -210,8 +212,16 @@ def main():
     tags = tag_session(metadata["project"], metadata.get("topic", ""), provenance["host"], cwd)
     metadata["source"] = env_source or tags["source"]
     metadata["task_type"] = tags["task_type"]
+    metadata["ide"] = "claude_code"
+    metadata["aborted"] = False
+    metadata["has_errors"] = False
 
-    upload(session_id, metadata, transcript_path)
+    status_file = Path(f"/tmp/gleaner_upload_{session_id}")
+    try:
+        upload(session_id, metadata, transcript_path)
+        status_file.write_text("ok")
+    except Exception as exc:
+        status_file.write_text(str(exc))
 
 
 if __name__ == "__main__":

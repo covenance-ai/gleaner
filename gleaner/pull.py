@@ -85,6 +85,9 @@ def _flatten_session(s: dict) -> dict:
         "redactions": s.get("redactions") or 0,
         "source": tags["source"],
         "task_type": tags["task_type"],
+        "ide": s.get("ide") or tags.get("ide", "claude_code"),
+        "aborted": s.get("aborted", False),
+        "has_errors": s.get("has_errors", False),
     }
 
 

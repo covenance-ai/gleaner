@@ -1,6 +1,7 @@
 """Tests for gleaner.config: config file I/O, hook management."""
 
 import json
+import plistlib
 
 import pytest
 
@@ -12,6 +13,10 @@ def isolated_paths(tmp_path, monkeypatch):
     """Redirect config and settings files to a temp directory."""
     monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "gleaner.json")
     monkeypatch.setattr(config, "CLAUDE_SETTINGS", tmp_path / ".claude" / "settings.json")
+    monkeypatch.setattr(config, "CURSOR_HOOKS", tmp_path / ".cursor" / "hooks.json")
+    monkeypatch.setattr(config, "LAUNCHD_PLIST", tmp_path / "LaunchAgents" / f"{config.LAUNCHD_LABEL}.plist")
+    # Stub out launchctl so tests don't touch the real system
+    monkeypatch.setattr(config.subprocess, "run", lambda *a, **kw: None)
 
 
 class TestConfigRoundtrip:
@@ -115,3 +120,81 @@ class TestHookManagement:
         config.remove_hook()
         settings = config.read_claude_settings()
         assert settings["hooks"]["SessionEnd"] == []
+
+
+class TestCursorHookManagement:
+    """install_cursor_hook / remove_cursor_hook manage ~/.cursor/hooks.json."""
+
+    def test_install_on_empty(self):
+        assert config.install_cursor_hook() is True
+        assert config.is_cursor_hook_installed() is True
+
+    def test_creates_valid_hooks_json(self):
+        """Installed hooks.json has version and correct structure."""
+        config.install_cursor_hook()
+        cfg = config.read_cursor_hooks()
+        assert cfg["version"] == 1
+        assert len(cfg["hooks"]["stop"]) == 1
+        assert "gleaner" in cfg["hooks"]["stop"][0]["command"]
+
+    def test_install_is_idempotent(self):
+        config.install_cursor_hook()
+        assert config.install_cursor_hook() is False
+        cfg = config.read_cursor_hooks()
+        assert len(cfg["hooks"]["stop"]) == 1
+
+    def test_remove(self):
+        config.install_cursor_hook()
+        assert config.remove_cursor_hook() is True
+        assert config.is_cursor_hook_installed() is False
+
+    def test_remove_when_not_installed(self):
+        assert config.remove_cursor_hook() is False
+
+    def test_preserves_other_hooks(self):
+        """Installing/removing gleaner doesn't affect other Cursor hooks."""
+        cfg = {
+            "version": 1,
+            "hooks": {
+                "stop": [{"command": "my-other-hook"}],
+                "afterFileEdit": [{"command": "lint-hook"}],
+            },
+        }
+        config.write_cursor_hooks(cfg)
+
+        config.install_cursor_hook()
+        cfg = config.read_cursor_hooks()
+        assert len(cfg["hooks"]["stop"]) == 2
+        assert "afterFileEdit" in cfg["hooks"]
+
+        config.remove_cursor_hook()
+        cfg = config.read_cursor_hooks()
+        assert len(cfg["hooks"]["stop"]) == 1
+        assert cfg["hooks"]["stop"][0]["command"] == "my-other-hook"
+
+
+class TestBackfillAgent:
+    """install_backfill_agent / remove_backfill_agent manage a launchd plist."""
+
+    def test_install_creates_valid_plist(self):
+        assert config.install_backfill_agent() is True
+        assert config.LAUNCHD_PLIST.exists()
+        plist = plistlib.loads(config.LAUNCHD_PLIST.read_bytes())
+        assert plist["Label"] == config.LAUNCHD_LABEL
+        assert "--source" in plist["ProgramArguments"]
+        assert "cursor" in plist["ProgramArguments"]
+        assert plist["StartInterval"] == config.BACKFILL_INTERVAL
+        assert plist["RunAtLoad"] is True
+
+    def test_install_is_idempotent(self):
+        config.install_backfill_agent()
+        assert config.install_backfill_agent() is False
+
+    def test_remove(self):
+        config.install_backfill_agent()
+        assert config.remove_backfill_agent() is True
+        assert not config.LAUNCHD_PLIST.exists()
+        assert config.is_backfill_agent_installed() is False
+
+    def test_remove_when_not_installed(self):
+        assert config.remove_backfill_agent() is False

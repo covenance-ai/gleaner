@@ -1,10 +1,10 @@
 [project]
 name = "gleaner"
-version = "0.1.0"
+version = "0.1.1"
 description = "Upload Claude Code session transcripts to Gleaner"
 requires-python = ">=3.10"
 license = "MIT"
-dependencies = ["piicleaner", "detect-secrets"]
+dependencies = ["piicleaner", "detect-secrets", "pydantic>=2"]
 
 [project.scripts]
 gleaner = "gleaner.cli:main"
@@ -17,6 +17,11 @@ arcade = "arcade.install:main"
 
 [project.optional-dependencies]
 pull = [
+    "pyarrow",
+]
+serve = [
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
     "pyarrow",
 ]
 presidio = [
@@ -34,7 +39,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["gleaner", "arcade"]
+packages = ["gleaner", "arcade", "server"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

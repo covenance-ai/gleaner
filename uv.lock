@@ -500,6 +500,7 @@ source = { editable = "." }
 dependencies = [
     { name = "detect-secrets" },
     { name = "piicleaner" },
+    { name = "pydantic" },
 ]
 
 [package.optional-dependencies]
@@ -523,6 +524,7 @@ requires-dist = [
     { name = "presidio-analyzer", marker = "extra == 'presidio'" },
     { name = "presidio-anonymizer", marker = "extra == 'presidio'" },
     { name = "pyarrow", marker = "extra == 'pull'" },
+    { name = "pydantic", specifier = ">=2" },
     { name = "pyobjc-framework-cocoa", marker = "extra == 'arcade'" },
     { name = "pyobjc-framework-quartz", marker = "extra == 'arcade'" },
     { name = "spacy", marker = "extra == 'presidio'" },

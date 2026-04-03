@@ -29,6 +29,13 @@ function initTabs() {
   });
 }
 
+function applyLocalMode() {
+  document.querySelector('nav button[data-tab="team"]').style.display = 'none';
+  document.querySelector('nav button[data-tab="settings"]').style.display = 'none';
+  const logoutBtn = document.querySelector('.logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+}
+
 // --- Bootstrap ---
 initTheme();
 initTabs();

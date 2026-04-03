@@ -158,6 +158,12 @@ def main():
         help="Session source (default: claude)",
     )
 
+    sub.add_parser("collect", help="Collect local IDE sessions into the vault")
+
+    p = sub.add_parser("serve", help="Start local dashboard")
+    p.add_argument("--port", type=int, default=8765, help="Port (default: 8765)")
+    p.add_argument("--no-collect", action="store_true", help="Skip session collection on startup")
+
     p = sub.add_parser("pull", help="Download sessions for local analysis")
     p.add_argument("-o", "--output", help="Output directory (default: ~/.gleaner)")
     p.add_argument("--transcripts", action="store_true", help="Also download raw transcripts")
@@ -168,7 +174,7 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    commands = {
+    commands: dict = {
         "setup": cmd_setup,
         "status": cmd_status,
         "on": cmd_on,
@@ -176,7 +182,51 @@ def main():
         "auth": cmd_auth,
     }
 
-    if args.command == "backfill":
+    if args.command == "serve":
+        try:
+            import uvicorn  # noqa: F401
+        except ImportError:
+            print("uvicorn + fastapi required: pip install 'gleaner[serve]'", file=sys.stderr)
+            sys.exit(1)
+
+        if not args.no_collect:
+            try:
+                import pyarrow  # noqa: F401
+                from gleaner.vault import collect
+                added = collect()
+                if added:
+                    print(f"Collected {added} new sessions")
+            except ImportError:
+                print("pyarrow not installed, skipping collect", file=sys.stderr)
+
+        import os
+        os.environ["GLEANER_LOCAL"] = "1"
+        import uvicorn
+        print(f"Starting local dashboard at http://127.0.0.1:{args.port}")
+        uvicorn.run("server.server:app", host="127.0.0.1", port=args.port)
+        sys.exit(0)
+
+    elif args.command == "collect":
+        try:
+            import pyarrow  # noqa: F401
+        except ImportError:
+            print("pyarrow required: pip install 'gleaner[pull]'", file=sys.stderr)
+            sys.exit(1)
+
+        from gleaner.vault import VAULT_DIR, collect
+
+        added = collect()
+        index = VAULT_DIR / "index.parquet"
+        total = 0
+        if index.exists():
+            import pyarrow.parquet as pq
+
+            total = pq.read_metadata(index).num_rows
+        if added:
+            print(f"Collected {added} new sessions (total: {total})")
+        else:
+            print(f"Up to date ({total} sessions)")
+    elif args.command == "backfill":
         from gleaner.backfill import run
 
         run(dry_run=args.dry_run, project=args.project, force=args.force, source=args.source)

@@ -12,8 +12,8 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-# conftest.py sets GLEANER_MOCK=1 and adds server/ to sys.path
-from server import _suggest_username, app
+# conftest.py sets GLEANER_MOCK=1 and adds repo root to sys.path
+from server.server import _suggest_username, app
 
 client = TestClient(app, root_path="/gleaner")
 AUTH = {"Authorization": "Bearer mock"}
@@ -70,8 +70,8 @@ class TestAuth:
 
     @pytest.fixture(autouse=True)
     def disable_mock_mode(self, monkeypatch):
-        import server
-        monkeypatch.setattr(server, "MOCK_MODE", False)
+        import server.server as srv
+        monkeypatch.setattr(srv, "MOCK_MODE", False)
 
     def test_no_header_returns_401(self):
         r = client.get("/api/me")
@@ -92,7 +92,7 @@ class TestAuth:
 
     def test_revoked_token_returns_403(self):
         """Create a token, revoke it, then try to use it."""
-        import db_mock as db
+        from server import db_mock as db
         raw = db.create_user_token("testuser", "test@x.com", "to-revoke")
         db.revoke_user_token(raw[:8], "test@x.com")
         r = client.get("/api/me", headers={"Authorization": f"Bearer {raw}"})

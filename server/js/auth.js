@@ -101,6 +101,19 @@ function initAuth() {
   document.getElementById('token-input').addEventListener('keydown', e => { if (e.key === 'Enter') authenticate(); });
 
   fetch(BASE + '/api/config').then(r => r.json()).then(cfg => {
+    window.GLEANER_MODE = cfg.mode || 'cloud';
+
+    // Local mode: no auth needed
+    if (cfg.mode === 'local') {
+      TOKEN = 'local';
+      document.getElementById('auth-overlay').classList.add('hidden');
+      applyLocalMode();
+      Promise.all([apiFetch('/api/me'), apiFetch('/api/stats')]).then(([me, stats]) => {
+        onAuthSuccess(me, stats);
+      }).catch(() => {});
+      return;
+    }
+
     // Google Sign-In button
     if (cfg.google_client_id) {
       (function tryInit() {

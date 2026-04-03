@@ -10,8 +10,8 @@ import pytest
 # Set mock mode before any server import
 os.environ["GLEANER_MOCK"] = "1"
 
-# Make server/ importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
+# Make server package importable from repo root
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 @pytest.fixture

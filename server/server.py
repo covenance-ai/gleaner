@@ -28,13 +28,18 @@ from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from google.auth.transport import requests as google_auth_requests
-from google.oauth2 import id_token as google_id_token
 
-if os.environ.get("GLEANER_MOCK"):
-    import db_mock as db
+LOCAL_MODE = bool(os.environ.get("GLEANER_LOCAL"))
+MOCK_MODE = bool(os.environ.get("GLEANER_MOCK"))
+
+if LOCAL_MODE:
+    from . import db_local as db
+elif MOCK_MODE:
+    from . import db_mock as db
 else:
-    import db
+    from google.auth.transport import requests as google_auth_requests
+    from google.oauth2 import id_token as google_id_token
+    from . import db
 
 _server_dir = Path(__file__).parent
 _JS_FILES = ["util", "api", "auth", "onboarding", "home", "team", "sessions", "settings", "app"]
@@ -47,13 +52,14 @@ DASHBOARD_HTML = (
 )
 
 ADMIN_TOKEN = os.environ.get("GLEANER_ADMIN_TOKEN", "")
-BASE_PATH = os.environ.get("BASE_PATH", "/gleaner")
-GOOGLE_CLIENT_ID = os.environ.get("GLEANER_GOOGLE_CLIENT_ID", "")
+BASE_PATH = os.environ.get("BASE_PATH", "/gleaner") if not LOCAL_MODE else ""
+GOOGLE_CLIENT_ID = os.environ.get("GLEANER_GOOGLE_CLIENT_ID", "") if not LOCAL_MODE else ""
 ALLOWED_USERS: dict[str, str] = {}  # email -> username
-for _pair in filter(None, os.environ.get("GLEANER_ALLOWED_USERS", "").split(",")):
-    if ":" in _pair:
-        _e, _u = _pair.strip().split(":", 1)
-        ALLOWED_USERS[_e.strip()] = _u.strip()
+if not LOCAL_MODE:
+    for _pair in filter(None, os.environ.get("GLEANER_ALLOWED_USERS", "").split(",")):
+        if ":" in _pair:
+            _e, _u = _pair.strip().split(":", 1)
+            ALLOWED_USERS[_e.strip()] = _u.strip()
 
 app = FastAPI(
     title="Gleaner",
@@ -84,7 +90,7 @@ def _suggest_username(email: str, display_name: str = "") -> str:
 
 
 def _verify_google_jwt(token: str) -> dict | None:
-    if not GOOGLE_CLIENT_ID:
+    if LOCAL_MODE or not GOOGLE_CLIENT_ID:
         return None
     try:
         idinfo = google_id_token.verify_oauth2_token(
@@ -135,12 +141,17 @@ def _verify_google_jwt(token: str) -> dict | None:
         return None
 
 
-MOCK_MODE = bool(os.environ.get("GLEANER_MOCK"))
 _MOCK_USER = {"name": "ikamen", "active": True, "email": "ikamen@example.com"}
+
+if LOCAL_MODE:
+    import getpass
+    _LOCAL_USER = {"name": getpass.getuser(), "active": True}
 
 
 def _require_token(authorization: str = Header("")) -> dict:
     """Authenticate. Rejects non-onboarded Google users."""
+    if LOCAL_MODE:
+        return _LOCAL_USER
     if MOCK_MODE:
         return _MOCK_USER
     if not authorization.startswith("Bearer "):
@@ -159,6 +170,8 @@ def _require_token(authorization: str = Header("")) -> dict:
 
 def _require_token_allow_onboarding(authorization: str = Header("")) -> dict:
     """Authenticate, allowing non-onboarded Google users through."""
+    if LOCAL_MODE:
+        return _LOCAL_USER
     if MOCK_MODE:
         return _MOCK_USER
     if not authorization.startswith("Bearer "):
@@ -195,7 +208,8 @@ def health():
 
 @app.get("/api/config")
 def get_config():
-    return {"google_client_id": GOOGLE_CLIENT_ID, "mock": MOCK_MODE}
+    mode = "local" if LOCAL_MODE else "mock" if MOCK_MODE else "cloud"
+    return {"mode": mode, "google_client_id": GOOGLE_CLIENT_ID, "mock": MOCK_MODE}
 
 
 # --- Session endpoints (Bearer auth) ---
@@ -458,4 +472,5 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    host = "127.0.0.1" if LOCAL_MODE else "0.0.0.0"
+    uvicorn.run(app, host=host, port=port)

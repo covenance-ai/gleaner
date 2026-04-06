@@ -47,7 +47,7 @@ jobs:
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy gleaner \
-            --source=./server \
+            --source=. \
             --project=covenance-469421 \
             --region=europe-west1 \
             --allow-unauthenticated \

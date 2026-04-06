@@ -117,7 +117,8 @@ function renderActivity(days, el) {
       const iso = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
       if (iso > lastIso) break;
       const count = lookup[iso] || 0;
-      html += '<div class="activity-day ' + lvl(count) + '" data-tip="' + iso + ': ' + count + '"></div>';
+      const clickAttr = count > 0 ? ' style="cursor:pointer" onclick="filterByDate(\'' + iso + '\')"' : '';
+      html += '<div class="activity-day ' + lvl(count) + '" data-tip="' + iso + ': ' + count + '"' + clickAttr + '></div>';
     }
     html += '</div></div>';
     if (++m > 11) { m = 0; y++; }

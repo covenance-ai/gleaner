@@ -46,6 +46,28 @@ def _duration_seconds(first_ts: str, last_ts: str) -> float:
         return 0.0
 
 
+def _aggregate_tool_usage(rows: list[dict]) -> dict[str, int]:
+    """Sum tool counts across rows from tool_counts_json."""
+    totals: dict[str, int] = defaultdict(int)
+    for r in rows:
+        try:
+            for tool, count in json.loads(r.get("tool_counts_json", "{}")).items():
+                totals[tool] += count
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return dict(sorted(totals.items(), key=lambda x: -x[1]))
+
+
+def _count_by_date(rows: list[dict]) -> dict[str, int]:
+    """Count sessions per date from first_timestamp."""
+    counts: dict[str, int] = defaultdict(int)
+    for r in rows:
+        ts = (r.get("first_timestamp") or "")[:10]
+        if ts:
+            counts[ts] += 1
+    return counts
+
+
 def _row_to_session(row: dict, include_tool_counts: bool = False) -> dict:
     """Convert a parquet row to the API session shape."""
     result = {
@@ -146,9 +168,7 @@ def store_session(
 def get_session(session_id: str) -> dict | None:
     for row in _load_index():
         if row["session_id"] == session_id:
-            result = _row_to_session(row, include_tool_counts=True)
-            # get_session always includes tool_counts (used by detail view)
-            return result
+            return _row_to_session(row, include_tool_counts=True)
     return None
 
 
@@ -166,6 +186,7 @@ def list_sessions(
     ids_only: bool = False,
     uploaded_after: datetime | None = None,
     keep_tool_counts: bool = False,
+    session_date: str | None = None,
 ) -> list:
     rows = _load_index()
 
@@ -176,6 +197,8 @@ def list_sessions(
     if uploaded_after:
         after_str = uploaded_after.isoformat()
         rows = [r for r in rows if (r.get("ingested_at") or "") > after_str]
+    if session_date:
+        rows = [r for r in rows if (r.get("first_timestamp") or "")[:10] == session_date]
 
     rows.sort(key=lambda r: r.get("first_timestamp") or "", reverse=True)
 
@@ -253,13 +276,7 @@ def _compute_user_stats(username: str, rows: list[dict]) -> dict:
 
     most_active = max(week_projects, key=week_projects.get) if week_projects else ""
 
-    # Heatmap
-    date_counts: dict[str, int] = defaultdict(int)
-    for r in rows:
-        ts = (r.get("first_timestamp") or "")[:10]
-        if ts:
-            date_counts[ts] += 1
-
+    date_counts = _count_by_date(rows)
     heatmap = []
     d = heatmap_start
     while d <= today:
@@ -267,17 +284,6 @@ def _compute_user_stats(username: str, rows: list[dict]) -> dict:
         heatmap.append({"date": ds, "count": date_counts.get(ds, 0)})
         d += timedelta(days=1)
 
-    # Tool usage
-    tool_usage: dict[str, int] = defaultdict(int)
-    for r in rows:
-        try:
-            counts = json.loads(r.get("tool_counts_json", "{}"))
-            for tool, count in counts.items():
-                tool_usage[tool] += count
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Project usage
     project_usage: dict[str, int] = defaultdict(int)
     for r in rows:
         proj = r.get("project", "")
@@ -299,7 +305,7 @@ def _compute_user_stats(username: str, rows: list[dict]) -> dict:
             "most_active_project": most_active,
         },
         "heatmap": heatmap,
-        "tool_usage": dict(sorted(tool_usage.items(), key=lambda x: -x[1])),
+        "tool_usage": _aggregate_tool_usage(rows),
         "project_usage": dict(sorted(project_usage.items(), key=lambda x: -x[1])),
         "recent_sessions": recent,
     }
@@ -393,29 +399,12 @@ def get_stats() -> dict:
             "users": sorted({r.get("user", "") for r in proj_rows if r.get("user")}),
         }
 
-    # Timeline (last 30 days)
-    date_counts: dict[str, int] = defaultdict(int)
-    for r in rows:
-        ts = (r.get("first_timestamp") or "")[:10]
-        if ts:
-            date_counts[ts] += 1
-
+    date_counts = _count_by_date(rows)
     timeline = []
     for i in range(29, -1, -1):
         day = (today - timedelta(days=i)).isoformat()
         timeline.append({"date": day, "count": date_counts.get(day, 0)})
 
-    # Tool usage
-    tool_usage: dict[str, int] = defaultdict(int)
-    for r in rows:
-        try:
-            counts = json.loads(r.get("tool_counts_json", "{}"))
-            for tool, count in counts.items():
-                tool_usage[tool] += count
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Recent sessions
     sorted_rows = sorted(rows, key=lambda r: r.get("first_timestamp") or "", reverse=True)
     recent = [_row_to_session(r) for r in sorted_rows[:10]]
 
@@ -429,7 +418,7 @@ def get_stats() -> dict:
         "active_this_week": active_this_week,
         "users": users,
         "projects": projects,
-        "tool_usage": dict(sorted(tool_usage.items(), key=lambda x: -x[1])),
+        "tool_usage": _aggregate_tool_usage(rows),
         "timeline": timeline,
         "user_stats": user_stats,
         "project_stats": project_stats,

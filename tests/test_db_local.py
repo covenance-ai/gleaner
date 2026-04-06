@@ -12,9 +12,8 @@ from pathlib import Path
 
 import pytest
 
-pyarrow = pytest.importorskip("pyarrow")
-pq = pytest.importorskip("pyarrow.parquet")
 pa = pytest.importorskip("pyarrow")
+pq = pytest.importorskip("pyarrow.parquet")
 
 
 def _make_row(session_id="s1", user="testuser", project="test-proj", **overrides):

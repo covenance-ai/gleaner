@@ -39,7 +39,7 @@ elif MOCK_MODE:
 else:
     from google.auth.transport import requests as google_auth_requests
     from google.oauth2 import id_token as google_id_token
-    from . import db
+    from backend import db
 
 _server_dir = Path(__file__).parent
 _JS_FILES = ["util", "api", "auth", "onboarding", "home", "team", "sessions", "settings", "app"]
@@ -142,6 +142,7 @@ def _verify_google_jwt(token: str) -> dict | None:
 
 
 _MOCK_USER = {"name": "ikamen", "active": True, "email": "ikamen@example.com"}
+_LOCAL_USER = None
 
 if LOCAL_MODE:
     import getpass
@@ -250,6 +251,7 @@ def list_sessions(
     limit: int = 100,
     ids_only: bool = False,
     since: str | None = None,
+    date: str | None = None,
     export: bool = False,
     authorization: str = Header(""),
 ):
@@ -272,6 +274,7 @@ def list_sessions(
     sessions = db.list_sessions(
         user=user, project=project, limit=limit,
         uploaded_after=uploaded_after, keep_tool_counts=export,
+        session_date=date,
     )
     return {"sessions": sessions}
 

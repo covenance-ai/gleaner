@@ -103,14 +103,15 @@ function initAuth() {
   fetch(BASE + '/api/config').then(r => r.json()).then(cfg => {
     window.GLEANER_MODE = cfg.mode || 'cloud';
 
-    // Local mode: no auth needed
+    // Local mode: no auth needed, skip team stats
     if (cfg.mode === 'local') {
       TOKEN = 'local';
       document.getElementById('auth-overlay').classList.add('hidden');
       applyLocalMode();
-      Promise.all([apiFetch('/api/me'), apiFetch('/api/stats')]).then(([me, stats]) => {
-        onAuthSuccess(me, stats);
-      }).catch(() => {});
+      apiFetch('/api/me').then(me => {
+        showHome(me);
+        loadSessions();
+      }).catch(e => console.error('Local mode init failed:', e));
       return;
     }
 

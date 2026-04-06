@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 
@@ -183,36 +184,19 @@ def main():
     }
 
     if args.command == "serve":
-        try:
-            import uvicorn  # noqa: F401
-        except ImportError:
-            print("uvicorn + fastapi required: pip install 'gleaner[serve]'", file=sys.stderr)
-            sys.exit(1)
-
         if not args.no_collect:
-            try:
-                import pyarrow  # noqa: F401
-                from gleaner.vault import collect
-                added = collect()
-                if added:
-                    print(f"Collected {added} new sessions")
-            except ImportError:
-                print("pyarrow not installed, skipping collect", file=sys.stderr)
+            from gleaner.vault import collect
+            added = collect()
+            if added:
+                print(f"Collected {added} new sessions")
 
-        import os
-        os.environ["GLEANER_LOCAL"] = "1"
         import uvicorn
+        os.environ["GLEANER_LOCAL"] = "1"
         print(f"Starting local dashboard at http://127.0.0.1:{args.port}")
         uvicorn.run("server.server:app", host="127.0.0.1", port=args.port)
         sys.exit(0)
 
     elif args.command == "collect":
-        try:
-            import pyarrow  # noqa: F401
-        except ImportError:
-            print("pyarrow required: pip install 'gleaner[pull]'", file=sys.stderr)
-            sys.exit(1)
-
         from gleaner.vault import VAULT_DIR, collect
 
         added = collect()

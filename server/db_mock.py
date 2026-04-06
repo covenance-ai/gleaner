@@ -524,6 +524,7 @@ def list_sessions(
     ids_only: bool = False,
     uploaded_after: datetime | None = None,
     keep_tool_counts: bool = False,
+    session_date: str | None = None,
 ) -> list:
     results = sorted(
         _sessions.values(),
@@ -536,6 +537,8 @@ def list_sessions(
         results = [s for s in results if s.get("project") == project]
     if uploaded_after:
         results = [s for s in results if s.get("uploaded_at", "") > uploaded_after]
+    if session_date:
+        results = [s for s in results if (s.get("first_timestamp") or "")[:10] == session_date]
     if limit:
         results = results[:limit]
     if ids_only:

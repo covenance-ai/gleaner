@@ -30,10 +30,8 @@ function initTabs() {
 }
 
 function applyLocalMode() {
-  document.querySelector('nav button[data-tab="team"]').style.display = 'none';
-  document.querySelector('nav button[data-tab="settings"]').style.display = 'none';
-  const logoutBtn = document.querySelector('.logout-btn');
-  if (logoutBtn) logoutBtn.style.display = 'none';
+  document.querySelectorAll('nav button[data-tab="team"], nav button[data-tab="settings"], .logout-btn')
+    .forEach(el => { el.style.display = 'none'; });
 }
 
 // --- Bootstrap ---

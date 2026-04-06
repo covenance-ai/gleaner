@@ -6,16 +6,19 @@ let transcriptHtmlOriginal = '';
 function loadSessions() {
   const user = document.getElementById('filter-user').value.trim();
   const project = document.getElementById('filter-project').value.trim();
+  const dateVal = document.getElementById('filter-date').value;
   const limit = document.getElementById('filter-limit').value;
   let url = `/api/sessions?limit=${limit}`;
   if (user) url += `&user=${encodeURIComponent(user)}`;
   if (project) url += `&project=${encodeURIComponent(project)}`;
+  if (dateVal) url += `&date=${encodeURIComponent(dateVal)}`;
 
   // Active filter tags
   const filtersEl = document.getElementById('active-filters');
   let filterHtml = '';
   if (user) filterHtml += `<span class="filter-tag">user: ${esc(user)} <span class="x" onclick="clearFilter('user')">&times;</span></span> `;
   if (project) filterHtml += `<span class="filter-tag">project: ${esc(prettyProject(project))} <span class="x" onclick="clearFilter('project')">&times;</span></span> `;
+  if (dateVal) filterHtml += `<span class="filter-tag">date: ${esc(dateVal)} <span class="x" onclick="clearFilter('date')">&times;</span></span> `;
   filtersEl.innerHTML = filterHtml ? `<div class="filters">${filterHtml}</div>` : '';
 
   document.getElementById('sessions-content').innerHTML = '<div class="loading">Loading...</div>';
@@ -72,6 +75,12 @@ function filterByUser(user) {
 function filterByProject(project) {
   document.getElementById('filter-project').value = project;
   document.getElementById('filter-user').value = '';
+  _switchToSessionsTab();
+  loadSessions();
+}
+
+function filterByDate(date) {
+  document.getElementById('filter-date').value = date;
   _switchToSessionsTab();
   loadSessions();
 }

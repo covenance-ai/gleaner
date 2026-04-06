@@ -1,6 +1,6 @@
 [project]
 name = "gleaner"
-version = "0.1.1"
+version = "0.1.3"
 description = "Upload Claude Code session transcripts to Gleaner"
 requires-python = ">=3.10"
 license = "MIT"
